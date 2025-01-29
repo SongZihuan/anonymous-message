@@ -1,0 +1,39 @@
+package flagparser
+
+import (
+	"flag"
+	"fmt"
+	resource "github.com/SongZihuan/anonymous-message"
+	"github.com/SongZihuan/anonymous-message/src/utils"
+)
+
+func PrintLicense() (int, error) {
+	title := utils.FormatTextToWidth(fmt.Sprintf("License of %s:", utils.GetArgs0Name()), utils.NormalConsoleWidth)
+	license := utils.FormatTextToWidth(resource.License, utils.NormalConsoleWidth)
+	return fmt.Fprintf(flag.CommandLine.Output(), "%s\n%s\n", title, license)
+}
+
+func PrintVersion() (int, error) {
+	version := utils.FormatTextToWidth(fmt.Sprintf("Version of %s: %s", utils.GetArgs0Name(), resource.Version), utils.NormalConsoleWidth)
+	return fmt.Fprintf(flag.CommandLine.Output(), "%s\n", version)
+}
+
+func PrintReport() (int, error) {
+	// 不需要title
+	report := utils.FormatTextToWidth(resource.Report, utils.NormalConsoleWidth)
+	return fmt.Fprintf(flag.CommandLine.Output(), "%s\n", report)
+}
+
+func PrintLF() (int, error) {
+	return fmt.Fprintf(flag.CommandLine.Output(), "\n")
+}
+
+func Print() {
+	fmt.Println("Debug:", Debug)
+	fmt.Println("Origin:", Origin)
+	fmt.Println("HttpAddress:", HttpAddress)
+	fmt.Println("Webhook:", Webhook)
+	fmt.Println("Redis Address:", RedisAddress)
+	fmt.Println("Redis Password:", RedisPassword)
+	fmt.Println("Redis DB:", RedisDB)
+}
