@@ -1,0 +1,71 @@
+# 设置所有文本文件使用LF作为行尾
+* text=auto eol=lf
+
+# 排除图片资源文件（保持之前的配置）
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+
+# 排除PDF文档（保持之前的配置）
+*.pdf binary
+
+# 排除视频资源文件（保持之前的配置）
+*.mp4 binary
+*.avi binary
+*.mkv binary
+*.mov binary
+*.wmv binary
+
+# 排除字体资源文件
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+*.eot binary
+
+# 排除音频文件
+*.mp3 binary
+*.wav binary
+*.aac binary
+*.flac binary
+
+# 排除压缩文件和存档
+*.zip binary
+*.tar.gz binary
+*.rar binary
+
+# 排除数据库文件
+*.db binary
+
+# 排除机器学习模型文件
+*.pb binary
+*.ckpt binary
+*.pth binary
+
+# 排除编译后的二进制可执行文件
+*.exe binary
+*.dll binary
+*.so binary
+*.dylib binary
+
+# 排除虚拟机和容器镜像
+*.dockerimage binary
+*.box binary
+*.vmdk binary
+*.vhd binary
+*.ova binary
+
+# 排除游戏资源文件
+*.obj binary
+*.fbx binary
+*.blend binary
+*.dds binary
+*.3ds binary
+
+# 排除日志文件
+*.log binary
+
+# 排除缓存和临时文件
+*.cache binary
+*.tmp binary
