@@ -9,7 +9,7 @@ import (
 )
 
 func HandlerOptions(c *gin.Context) {
-	ok := handlerOptions(c)
+	_, ok := handlerOptions(c)
 	if ok {
 		c.Writer.WriteHeader(http.StatusNoContent)
 		return
@@ -19,19 +19,20 @@ func HandlerOptions(c *gin.Context) {
 	}
 }
 
-func handlerOptions(c *gin.Context) bool {
+func handlerOptions(c *gin.Context) (string, bool) {
 	if flagparser.Origin != "" {
 		origin, ok := checkOrigin(c)
 		if ok {
 			allowHeaderWriter(c, origin)
-			return true
+			return origin, true
 		} else {
 			c.Writer.Header().Del("Access-Control-Allow-Origin") // 确保没有此请求头
-			return false
+			return origin, false
 		}
 	} else {
-		allowHeaderWriter(c, utils.OriginClear(c.GetHeader("Origin")))
-		return true
+		origin := utils.OriginClear(c.GetHeader("Origin"))
+		allowHeaderWriter(c, origin)
+		return origin, true
 	}
 }
 

@@ -50,7 +50,8 @@ type RespWebhookMsg struct {
 }
 
 func HandlerMessage(c *gin.Context) {
-	if ok := handlerOptions(c); !ok {
+	origin, ok := handlerOptions(c)
+	if !ok {
 		c.AbortWithStatus(http.StatusForbidden)
 		return
 	}
@@ -179,6 +180,9 @@ func HandlerMessage(c *gin.Context) {
 
 	var msgBuilder strings.Builder
 	msgBuilder.WriteString(fmt.Sprintf("站点：%s\n", safeRefer))
+
+	msgBuilder.WriteString(fmt.Sprintf("Origin: %s\n", origin))
+	msgBuilder.WriteString(fmt.Sprintf("Host: %s\n", c.Request.Host))
 
 	msgBuilder.WriteString(fmt.Sprintf("名字：%s\n", safeName))
 	if !isSafeName {
