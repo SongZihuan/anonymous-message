@@ -51,7 +51,7 @@ type RespWebhookMsg struct {
 
 func HandlerMessage(c *gin.Context) {
 	origin, ok := handlerOptions(c)
-	if !ok {
+	if origin == "" || !ok {
 		c.AbortWithStatus(http.StatusForbidden)
 		return
 	}
