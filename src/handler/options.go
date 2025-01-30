@@ -54,7 +54,7 @@ func checkOrigin(c *gin.Context) (string, bool) {
 		return "", false
 	}
 
-	for _, o := range strings.Split(origin, ",") {
+	for _, o := range strings.Split(flagparser.Origin, ",") {
 		if o == "*" {
 			return origin, true
 		} else if o = utils.OriginClear(o); o == origin { // origin肯定不会是""，因此此处不用判断o是否为""
