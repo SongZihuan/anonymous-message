@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/SongZihuan/anonymous-message/src/database"
 	"github.com/SongZihuan/anonymous-message/src/email"
 	"github.com/SongZihuan/anonymous-message/src/flagparser"
 	"github.com/SongZihuan/anonymous-message/src/iprate"
@@ -12,6 +13,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -187,7 +189,24 @@ func HandlerMessage(c *gin.Context) {
 		return
 	}
 
+	loc, err := time.LoadLocation("Asia/Shanghai")
+	if err != nil {
+		JSON(200, &ReturnData{
+			Code:       -11,
+			Success:    false,
+			Message:    "留言信息错误，请通过邮件 songzihuan@song-zh.com 留言。",
+			ErrMessage: "获取地区失败",
+		})
+		return
+	}
+
+	now := time.Now().In(loc)
+	mailID := utils.GetMailID(safeName, safeMsg, safeRefer, origin, c.Request.Host, now)
+
 	var msgBuilder strings.Builder
+	msgBuilder.WriteString(fmt.Sprintf("邮件ID: %s\n", mailID))
+	msgBuilder.WriteString(fmt.Sprintf("接收时间: %s %s\n", now.Format("2006-01-02 15:04:05"), now.Location().String()))
+
 	msgBuilder.WriteString(fmt.Sprintf("站点：%s\n", safeRefer))
 
 	msgBuilder.WriteString(fmt.Sprintf("Origin: %s\n", origin))
@@ -209,19 +228,41 @@ func HandlerMessage(c *gin.Context) {
 
 	msg := msgBuilder.String()
 
-	go func(msg string) {
+	var dblock sync.Mutex
+
+	go func(mailID string, name string, content string, refer string, origin string, host string, clientIP string, t time.Time, message string, dblock *sync.Mutex) {
+		defer dblock.Unlock()
+		err := DataBase(mailID, name, content, refer, origin, host, clientIP, t, message)
+		if err != nil {
+			fmt.Printf("企业微信发送消息出现错误: %s", err.Error())
+		}
+	}(mailID, safeName, safeMsg, safeRefer, origin, c.Request.Host, clientIP, now, msg, &dblock)
+
+	go func(msg string, dblock *sync.Mutex) {
 		err := WechatRobot(msg)
 		if err != nil {
 			fmt.Printf("企业微信发送消息出现错误: %s", err.Error())
 		}
-	}(msg)
 
-	go func(msg string, origin string, refer string) {
-		err := Email(msg, origin, refer)
+		func() {
+			dblock.Lock()
+			defer dblock.Unlock()
+			_ = database.UpdateWxRobotSendMsg(mailID, err)
+		}()
+	}(msg, &dblock)
+
+	go func(msg string, origin string, refer string, now time.Time) {
+		err := Email(msg, origin, refer, now)
 		if err != nil {
 			fmt.Printf("邮件发送消息出现错误: %s", err.Error())
 		}
-	}(msg, origin, safeRefer)
+
+		func() {
+			dblock.Lock()
+			defer dblock.Unlock()
+			_ = database.UpdateEmailSendMsg(mailID, err)
+		}()
+	}(msg, origin, safeRefer, now)
 
 	if isSafeMsg {
 		JSON(200, &ReturnData{
@@ -240,13 +281,26 @@ func HandlerMessage(c *gin.Context) {
 	}
 }
 
-func Email(msg string, origin string, refer string) (err error) {
+func DataBase(mailID string, name string, content string, refer string, origin string, host string, clientIP string, t time.Time, message string) error {
+	err := database.SaveMail(mailID, name, content, refer, origin, host, clientIP, t, message)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func Email(msg string, origin string, refer string, t time.Time) (err error) {
+	if flagparser.SMTPAddress == "" || flagparser.SMTPUser == "" {
+		return nil
+	}
+
 	if refer != "" && origin != "" && refer != origin {
-		err = email.Send(fmt.Sprintf("站点: %s（Origin: %s）", refer, origin), msg)
+		err = email.Send(fmt.Sprintf("站点: %s（Origin: %s）", refer, origin), msg, t)
 	} else if refer != "" {
-		err = email.Send(fmt.Sprintf("站点: %s", refer), msg)
+		err = email.Send(fmt.Sprintf("站点: %s", refer), msg, t)
 	} else if origin != "" {
-		err = email.Send(fmt.Sprintf("站点 Origin: %s", origin), msg)
+		err = email.Send(fmt.Sprintf("站点 Origin: %s", origin), msg, t)
 	} else {
 		return &SendError{
 			Code:    -1,
@@ -267,6 +321,10 @@ func Email(msg string, origin string, refer string) (err error) {
 }
 
 func WechatRobot(msg string) error {
+	if flagparser.Webhook == "" {
+		return nil
+	}
+
 	if len([]byte(msg)) >= 2048 {
 		return &SendError{
 			Code:    -1,

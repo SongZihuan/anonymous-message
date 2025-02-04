@@ -36,6 +36,9 @@ func initFlag() (err error) {
 	flag.StringVar(&SMTPPassword, "smtp-password", SMTPPassword, "smtp password")
 	flag.StringVar(&SMTPRecipient, "smtp-recipient", SMTPRecipient, "recipients, comma separated")
 
+	flag.StringVar(&SQLitePath, "sqlite-path", SQLitePath, "sqlite path")
+	flag.BoolVar(&SQLiteActiveClose, "sqlite-active-close", SQLiteActiveClose, "sqlite uses active shutdown. note: usually it does not need to be enabled.")
+
 	flag.StringVar(&Origin, "origin", Origin, "cors allow origin")
 
 	flag.BoolVar(&DryRun, "dry-run", DryRun, "only parser the options")

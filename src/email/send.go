@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-func Send(title string, msg string) error {
+func Send(title string, msg string, t time.Time) error {
 	if flagparser.SMTPAddress == "" || flagparser.SMTPUser == "" {
 		return nil
 	}
@@ -125,7 +125,7 @@ func Send(title string, msg string) error {
 	gomsg.SetHeader("From", fromAddr.String())
 	gomsg.SetHeader("To", recList...)
 	gomsg.SetHeader("Subject", fmt.Sprintf("【%s】%s", resource.Name, title))
-	gomsg.SetDateHeader("Date", time.Now())
+	gomsg.SetDateHeader("Date", t)
 	gomsg.SetBody("text/plain", msg)
 
 	w, err := client.Data()

@@ -3,6 +3,7 @@ package server
 import (
 	"errors"
 	"fmt"
+	"github.com/SongZihuan/anonymous-message/src/database"
 	"github.com/SongZihuan/anonymous-message/src/engine"
 	"github.com/SongZihuan/anonymous-message/src/flagparser"
 	"github.com/SongZihuan/anonymous-message/src/iprate"
@@ -67,6 +68,13 @@ func MainV1() (exitcode int) {
 		return 1
 	}
 	defer iprate.CloseRedis()
+
+	err = database.InitSQLite()
+	if err != nil {
+		fmt.Printf("init sqlite fail: %s\n", err.Error())
+		return 1
+	}
+	defer database.CloseSQLite()
 
 	err = engine.InitEngine()
 	if err != nil {
