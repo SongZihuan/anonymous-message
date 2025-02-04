@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/SongZihuan/anonymous-message/src/email"
 	"github.com/SongZihuan/anonymous-message/src/flagparser"
 	"github.com/SongZihuan/anonymous-message/src/iprate"
 	"github.com/SongZihuan/anonymous-message/src/utils"
@@ -47,6 +48,20 @@ type ReqWebhookMsg struct {
 type RespWebhookMsg struct {
 	ErrCode int    `json:"errcode"`
 	ErrMsg  string `json:"errmsg"`
+}
+
+type SendError struct {
+	Code    int
+	Err     error
+	Message string
+}
+
+func (s *SendError) Error() string {
+	if s.Err == nil {
+		return s.Message
+	}
+
+	return fmt.Sprintf("%s: %s", s.Message, s.Err.Error())
 }
 
 func HandlerMessage(c *gin.Context) {
@@ -150,13 +165,7 @@ func HandlerMessage(c *gin.Context) {
 	}
 
 	if data.Refer == "" {
-		JSON(200, &ReturnData{
-			Code:       -8,
-			Success:    false,
-			Message:    "留言信息错误，请通过邮件 songzihuan@song-zh.com 留言。",
-			ErrMessage: "缺少Refer",
-		})
-		return
+		data.Refer = origin
 	} else if len(data.Refer) >= 50 {
 		JSON(200, &ReturnData{
 			Code:       -9,
@@ -199,79 +208,20 @@ func HandlerMessage(c *gin.Context) {
 	msgBuilder.WriteString(fmt.Sprintf("---消息开始---\n%s\n---消息结束---", safeMsg))
 
 	msg := msgBuilder.String()
-	if len([]byte(msg)) >= 2048 {
-		JSON(200, &ReturnData{
-			Code:       -11,
-			Success:    false,
-			Message:    "留言信息太长了，缩短一点吧！",
-			ErrMessage: "消息超过微信限制长度",
-		})
-		return
-	}
 
-	webhookData, err := json.Marshal(ReqWebhookMsg{
-		MsgType: msgtypetext,
-		Text: WebhookText{
-			Content:             msg,
-			MentionedMobileList: []string{atall},
-		},
-	})
-	if err != nil {
-		JSON(200, &ReturnData{
-			Code:       -12,
-			Success:    false,
-			Message:    "留言信息错误，请通过邮件 songzihuan@song-zh.com 留言。",
-			ErrMessage: err.Error(),
-		})
-		return
-	}
+	go func(msg string) {
+		err := WechatRobot(msg)
+		if err != nil {
+			fmt.Printf("企业微信发送消息出现错误: %s", err.Error())
+		}
+	}(msg)
 
-	resp, err := http.Post(flagparser.Webhook, "application/json", bytes.NewBuffer(webhookData))
-	if err != nil {
-		JSON(200, &ReturnData{
-			Code:       -13,
-			Success:    false,
-			Message:    "留言信息错误，请通过邮件 songzihuan@song-zh.com 留言。",
-			ErrMessage: err.Error(),
-		})
-		return
-	}
-	defer func() {
-		_ = resp.Body.Close()
-	}()
-
-	respData, err := io.ReadAll(resp.Body)
-	if err != nil {
-		JSON(200, &ReturnData{
-			Code:       -14,
-			Success:    false,
-			Message:    "留言信息错误，请通过邮件 songzihuan@song-zh.com 留言。",
-			ErrMessage: err.Error(),
-		})
-		return
-	}
-
-	var respWebhook RespWebhookMsg
-	err = json.Unmarshal(respData, &respWebhook)
-	if err != nil {
-		JSON(200, &ReturnData{
-			Code:       -14,
-			Success:    false,
-			Message:    "留言信息错误，请通过邮件 songzihuan@song-zh.com 留言。",
-			ErrMessage: err.Error(),
-		})
-		return
-	}
-
-	if respWebhook.ErrCode != 0 {
-		JSON(200, &ReturnData{
-			Code:       -14,
-			Success:    false,
-			Message:    "留言信息错误，请通过邮件 songzihuan@song-zh.com 留言。",
-			ErrMessage: fmt.Sprintf("Webhook error (code: %d): %s", respWebhook.ErrCode, respWebhook.ErrMsg),
-		})
-		return
-	}
+	go func(msg string, origin string, refer string) {
+		err := Email(msg, origin, refer)
+		if err != nil {
+			fmt.Printf("邮件发送消息出现错误: %s", err.Error())
+		}
+	}(msg, origin, safeRefer)
 
 	if isSafeMsg {
 		JSON(200, &ReturnData{
@@ -288,4 +238,96 @@ func HandlerMessage(c *gin.Context) {
 			ErrMessage: "",
 		})
 	}
+}
+
+func Email(msg string, origin string, refer string) (err error) {
+	if refer != "" && origin != "" && refer != origin {
+		err = email.Send(fmt.Sprintf("站点: %s（Origin: %s）", refer, origin), msg)
+	} else if refer != "" {
+		err = email.Send(fmt.Sprintf("站点: %s", refer), msg)
+	} else if origin != "" {
+		err = email.Send(fmt.Sprintf("站点 Origin: %s", origin), msg)
+	} else {
+		return &SendError{
+			Code:    -1,
+			Message: "Refer和Origin为空",
+			Err:     nil,
+		}
+	}
+
+	if err != nil {
+		return &SendError{
+			Code:    -1,
+			Message: "邮件发送异常",
+			Err:     err,
+		}
+	}
+
+	return nil
+}
+
+func WechatRobot(msg string) error {
+	if len([]byte(msg)) >= 2048 {
+		return &SendError{
+			Code:    -1,
+			Message: "消息太长，超过企业微信限制",
+			Err:     nil,
+		}
+	}
+
+	webhookData, err := json.Marshal(ReqWebhookMsg{
+		MsgType: msgtypetext,
+		Text: WebhookText{
+			Content:             msg,
+			MentionedMobileList: []string{atall},
+		},
+	})
+	if err != nil {
+		return &SendError{
+			Code:    -1,
+			Message: "编码请求结构体为json错误",
+			Err:     err,
+		}
+	}
+
+	resp, err := http.Post(flagparser.Webhook, "application/json", bytes.NewBuffer(webhookData))
+	if err != nil {
+		return &SendError{
+			Code:    -2,
+			Message: "提交POST请求错误",
+			Err:     err,
+		}
+	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	respData, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return &SendError{
+			Code:    -3,
+			Message: "读取Body错误",
+			Err:     err,
+		}
+	}
+
+	var respWebhook RespWebhookMsg
+	err = json.Unmarshal(respData, &respWebhook)
+	if err != nil {
+		return &SendError{
+			Code:    -4,
+			Message: "将body解析成json错误",
+			Err:     err,
+		}
+	}
+
+	if respWebhook.ErrCode != 0 {
+		return &SendError{
+			Code:    -5,
+			Message: fmt.Sprintf("企业微信报告错误 (错误码: %d): %s", respWebhook.ErrCode, respWebhook.ErrMsg),
+			Err:     nil,
+		}
+	}
+
+	return nil
 }

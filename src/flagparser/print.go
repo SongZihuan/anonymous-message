@@ -36,4 +36,8 @@ func Print() {
 	fmt.Println("Redis Address:", RedisAddress)
 	fmt.Println("Redis Password:", RedisPassword)
 	fmt.Println("Redis DB:", RedisDB)
+	fmt.Println("SMTP Address:", SMTPAddress)
+	fmt.Println("SMTP User Name:", SMTPUser)
+	fmt.Println("SMTP Password:", SMTPPassword)
+	fmt.Println("SMTP Recipient:", SMTPRecipient)
 }

@@ -31,6 +31,11 @@ func initFlag() (err error) {
 	flag.StringVar(&RedisPassword, "redis-password", Webhook, "redis password")
 	flag.IntVar(&RedisDB, "redis-db", RedisDB, "redis db")
 
+	flag.StringVar(&SMTPAddress, "smtp-address", SMTPAddress, "smtp service address, example: smtp.qiye.aliyun.com:465")
+	flag.StringVar(&SMTPUser, "smtp-user", SMTPUser, "smtp user name")
+	flag.StringVar(&SMTPPassword, "smtp-password", SMTPPassword, "smtp password")
+	flag.StringVar(&SMTPRecipient, "smtp-recipient", SMTPRecipient, "recipients, comma separated")
+
 	flag.StringVar(&Origin, "origin", Origin, "cors allow origin")
 
 	flag.BoolVar(&DryRun, "dry-run", DryRun, "only parser the options")
