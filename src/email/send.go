@@ -17,9 +17,11 @@ import (
 )
 
 func Send(title string, msg string, t time.Time) error {
-	if flagparser.SMTPAddress == "" || flagparser.SMTPUser == "" {
+	if flagparser.SMTPAddress == "" || flagparser.SMTPUser == "" || flagparser.SMTPRecipient == "" {
 		return nil
 	}
+
+	sender := flagparser.SMTPUser
 
 	const missingPort = "missing port in address"
 	host, port, err := net.SplitHostPort(flagparser.SMTPAddress)
@@ -82,11 +84,11 @@ func Send(title string, msg string, t time.Time) error {
 	if canAuth {
 		var auth smtp.Auth
 		if strings.Contains(options, "CRAM-MD5") {
-			auth = smtp.CRAMMD5Auth(flagparser.SMTPUser, flagparser.SMTPPassword)
+			auth = smtp.CRAMMD5Auth(sender, flagparser.SMTPPassword)
 		} else if strings.Contains(options, "PLAIN") {
-			auth = smtp.PlainAuth("", flagparser.SMTPUser, flagparser.SMTPPassword, host)
+			auth = smtp.PlainAuth("", sender, flagparser.SMTPPassword, host)
 		} else if strings.Contains(options, "LOGIN") {
-			auth = LoginAuth(flagparser.SMTPUser, flagparser.SMTPPassword)
+			auth = LoginAuth(sender, flagparser.SMTPPassword)
 		}
 
 		if auth != nil {
@@ -96,7 +98,8 @@ func Send(title string, msg string, t time.Time) error {
 		}
 	}
 
-	if err = client.Mail(flagparser.SMTPUser); err != nil {
+	err = client.Mail(sender)
+	if err != nil {
 		return fmt.Errorf("mail: %v", err)
 	}
 
@@ -104,7 +107,7 @@ func Send(title string, msg string, t time.Time) error {
 	var recList = make([]string, 0, len(recipientList))
 	for _, rec := range recipientList {
 		rec = strings.TrimSpace(rec)
-		if utils.IsValidEmail(rec) {
+		if !utils.IsValidEmail(rec) {
 			fmt.Printf("%s is not a valid email, ignore\n", rec)
 		}
 
@@ -116,9 +119,13 @@ func Send(title string, msg string, t time.Time) error {
 		recList = append(recList, rec)
 	}
 
+	if len(recList) == 0 {
+		return fmt.Errorf("no any valid recipient")
+	}
+
 	fromAddr := mail.Address{
 		Name:    resource.Name,
-		Address: flagparser.HttpAddress,
+		Address: sender,
 	}
 
 	gomsg := gomail.NewMessage()

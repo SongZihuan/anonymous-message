@@ -13,7 +13,6 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -228,41 +227,111 @@ func HandlerMessage(c *gin.Context) {
 
 	msg := msgBuilder.String()
 
-	var dblock sync.Mutex
+	vxchan := make(chan bool, 2)
+	emailchan := make(chan bool, 2)
 
-	go func(mailID string, name string, content string, refer string, origin string, host string, clientIP string, t time.Time, message string, dblock *sync.Mutex) {
-		defer dblock.Unlock()
+	go func(mailID string, name string, content string, refer string, origin string, host string, clientIP string, t time.Time, message string, vxchan chan bool, emailchan chan bool) {
+		defer func() {
+			// 兜底
+			vxchan <- false
+			emailchan <- false
+		}()
+
+		defer func() {
+			if r := recover(); r != nil {
+				if _err, ok := r.(error); ok {
+					fmt.Printf("数据库提交消息出现致命错误: %s\n", _err.Error())
+				} else {
+					fmt.Printf("数据库提交消息出现致命错误（非error）: %v\n", r)
+				}
+			}
+		}()
+
 		err := DataBase(mailID, name, content, refer, origin, host, clientIP, t, message)
 		if err != nil {
-			fmt.Printf("企业微信发送消息出现错误: %s", err.Error())
-		}
-	}(mailID, safeName, safeMsg, safeRefer, origin, c.Request.Host, clientIP, now, msg, &dblock)
-
-	go func(msg string, dblock *sync.Mutex) {
-		err := WechatRobot(msg)
-		if err != nil {
-			fmt.Printf("企业微信发送消息出现错误: %s", err.Error())
+			fmt.Printf("数据库提交消息出现错误: %s", err.Error())
+			vxchan <- false
+			emailchan <- false
+			return
 		}
 
-		func() {
-			dblock.Lock()
-			defer dblock.Unlock()
-			_ = database.UpdateWxRobotSendMsg(mailID, err)
+		vxchan <- true
+		emailchan <- true
+	}(mailID, safeName, safeMsg, safeRefer, origin, c.Request.Host, clientIP, now, msg, vxchan, emailchan)
+
+	go func(msg string, vxchan chan bool) {
+		err := func() (err error) {
+			defer func() {
+				if r := recover(); r != nil {
+					if _err, ok := r.(error); ok {
+						fmt.Printf("企业微信发送消息出现致命错误: %s\n", _err.Error())
+						if err != nil {
+							err = _err
+							return
+						}
+					} else {
+						fmt.Printf("企业微信发送消息出现致命错误（非error）: %v\n", r)
+						if err != nil {
+							err = fmt.Errorf("%v", r)
+							return
+						}
+					}
+				}
+			}()
+
+			err = WechatRobot(msg)
+			if err != nil {
+				fmt.Printf("企业微信发送消息出现错误: %s\n", err.Error())
+				return err
+			}
+
+			return nil
 		}()
-	}(msg, &dblock)
 
-	go func(msg string, origin string, refer string, now time.Time) {
-		err := Email(msg, origin, refer, now)
-		if err != nil {
-			fmt.Printf("邮件发送消息出现错误: %s", err.Error())
-		}
+		func(vxErr error) {
+			defer close(vxchan)
+			if <-vxchan {
+				_ = database.UpdateWxRobotSendMsg(mailID, vxErr)
+			}
+		}(err)
+	}(msg, vxchan)
 
-		func() {
-			dblock.Lock()
-			defer dblock.Unlock()
-			_ = database.UpdateEmailSendMsg(mailID, err)
+	go func(msg string, origin string, refer string, now time.Time, emailchan chan bool) {
+		err := func() (err error) {
+			defer func() {
+				if r := recover(); r != nil {
+					if _err, ok := r.(error); ok {
+						fmt.Printf("邮件发送消息出现致命错误: %s\n", _err.Error())
+						if err != nil {
+							err = _err
+							return
+						}
+					} else {
+						fmt.Printf("邮件发送消息出现致命错误（非error）: %v\n", r)
+						if err != nil {
+							err = fmt.Errorf("%v", r)
+							return
+						}
+					}
+				}
+			}()
+
+			err = Email(msg, origin, refer, now)
+			if err != nil {
+				fmt.Printf("邮件发送消息出现错误: %s\n", err.Error())
+				return err
+			}
+
+			return nil
 		}()
-	}(msg, origin, safeRefer, now)
+
+		func(emailErr error) {
+			defer close(emailchan)
+			if <-emailchan {
+				_ = database.UpdateEmailSendMsg(mailID, emailErr)
+			}
+		}(err)
+	}(msg, origin, safeRefer, now, emailchan)
 
 	if isSafeMsg {
 		JSON(200, &ReturnData{
@@ -291,7 +360,7 @@ func DataBase(mailID string, name string, content string, refer string, origin s
 }
 
 func Email(msg string, origin string, refer string, t time.Time) (err error) {
-	if flagparser.SMTPAddress == "" || flagparser.SMTPUser == "" {
+	if flagparser.SMTPAddress == "" || flagparser.SMTPUser == "" || flagparser.SMTPRecipient == "" {
 		return nil
 	}
 
