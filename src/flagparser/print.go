@@ -40,4 +40,6 @@ func Print() {
 	fmt.Println("SMTP User Name:", SMTPUser)
 	fmt.Println("SMTP Password:", SMTPPassword)
 	fmt.Println("SMTP Recipient:", SMTPRecipient)
+	fmt.Println("SQLite Path:", SQLitePath)
+	fmt.Println("SQLite Active Close:", SQLiteActiveClose)
 }
