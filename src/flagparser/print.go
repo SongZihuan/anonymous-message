@@ -40,6 +40,13 @@ func Print() {
 	fmt.Println("SMTP User Name:", SMTPUser)
 	fmt.Println("SMTP Password:", SMTPPassword)
 	fmt.Println("SMTP Recipient:", SMTPRecipient)
+	fmt.Println("IMAP Address:", IMAPAddress)
+	fmt.Println("IMAP User Name:", IMAPUser)
+	fmt.Println("IMAP Password:", IMAPPassword)
+	fmt.Println("IMAP Recipient:", IMAPRecipient)
+	fmt.Println("IMAP MailBox:", IMAPMailBox)
 	fmt.Println("SQLite Path:", SQLitePath)
 	fmt.Println("SQLite Active Close:", SQLiteActiveClose)
+	fmt.Println("Time Zoom (use set) : ", _TimeZoom)
+	fmt.Println("Time Zoom: ", TimeZoom())
 }

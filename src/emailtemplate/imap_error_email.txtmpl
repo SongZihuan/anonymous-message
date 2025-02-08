@@ -1,0 +1,16 @@
+尊敬的 {{ .FromName }} :
+
+   您好，我们（{{ .ToNameAndAddr }}）已经收到您的来信。但是非常抱歉，您的来信存在以下问题被我们拒收：{{ .ErrorMsg }}。
+   注意：邮件地址 {{ .ReplyAddr }} 在接下来的10分钟内不会再收到我们的邮件通知。
+
+   非常感谢。
+
+---
+
+{{ .SystemName }}
+
+{{ .ToNameAndAddr }}
+{{ .Date }} {{ .DateLocation }}
+{{ if ne .DateLocation "UTC" }}
+{{ .DateUTC }} UTC
+{{ end }}

@@ -1,4 +1,4 @@
-package iprate
+package reqrate
 
 import (
 	"context"

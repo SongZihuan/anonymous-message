@@ -143,3 +143,273 @@ func IsValidHTTPHeaderKey(key string) bool {
 	matched, _ := regexp.MatchString(pattern, key)
 	return matched
 }
+
+func CompressSpaces(input string) string {
+	var res strings.Builder
+
+	lastIsSpace := false
+	for _, r := range input {
+		if r == ' ' {
+			if lastIsSpace {
+				continue
+			} else {
+				lastIsSpace = true
+				res.WriteRune(r)
+			}
+		} else {
+			lastIsSpace = false
+			res.WriteRune(r)
+		}
+	}
+
+	return res.String()
+}
+
+func CompressTTab(input string) string {
+	var res strings.Builder
+
+	lastIsTTab := false
+	for _, r := range input {
+		if r == '\t' {
+			if lastIsTTab {
+				continue
+			} else {
+				lastIsTTab = true
+				res.WriteRune(r)
+			}
+		} else {
+			lastIsTTab = false
+			res.WriteRune(r)
+		}
+	}
+
+	return res.String()
+}
+
+func Compress0xA0(input string) string {
+	var res strings.Builder
+
+	lastIs0xA0 := false
+	for _, r := range input {
+		if r == 0xA0 {
+			if lastIs0xA0 {
+				continue
+			} else {
+				lastIs0xA0 = true
+				res.WriteRune(r)
+			}
+		} else {
+			lastIs0xA0 = false
+			res.WriteRune(r)
+		}
+	}
+
+	return res.String()
+}
+
+func CompressSpacesGroup(input string) string {
+	var res strings.Builder
+
+	lastIsSpace := false
+	for _, r := range input {
+		if r == ' ' || r == 0xA0 || r == '\t' {
+			if lastIsSpace {
+				continue
+			} else {
+				lastIsSpace = true
+				res.WriteRune(' ')
+			}
+		} else {
+			lastIsSpace = false
+			res.WriteRune(r)
+		}
+	}
+
+	return res.String()
+}
+
+func CompressFormFeed(input string) string {
+	var res strings.Builder
+
+	lastIsFormFeed := false
+	for _, r := range input {
+		if r == '\f' {
+			if lastIsFormFeed {
+				continue
+			} else {
+				lastIsFormFeed = true
+				res.WriteRune(r)
+			}
+		} else {
+			lastIsFormFeed = false
+			res.WriteRune(r)
+		}
+	}
+
+	return res.String()
+}
+
+func Compress0x85(input string) string {
+	var res strings.Builder
+
+	lastIs0x85 := false
+	for _, r := range input {
+		if r == 0x85 {
+			if lastIs0x85 {
+				continue
+			} else {
+				lastIs0x85 = true
+				res.WriteRune(r)
+			}
+		} else {
+			lastIs0x85 = false
+			res.WriteRune(r)
+		}
+	}
+
+	return res.String()
+}
+
+func CompressEnter(input string) string {
+	var res strings.Builder
+
+	lastIsEnter := false
+	for _, r := range input {
+		if r == '\n' || r == '\r' {
+			if lastIsEnter {
+				continue
+			} else {
+				lastIsEnter = true
+				res.WriteRune('\n')
+			}
+		} else {
+			lastIsEnter = false
+			res.WriteRune(r)
+		}
+	}
+
+	return res.String()
+}
+
+func CompressVTab(input string) string {
+	var res strings.Builder
+
+	lastIsVTab := false
+	for _, r := range input {
+		if r == '\v' {
+			if lastIsVTab {
+				continue
+			} else {
+				lastIsVTab = true
+				res.WriteRune(r)
+			}
+		} else {
+			lastIsVTab = false
+			res.WriteRune(r)
+		}
+	}
+
+	return res.String()
+}
+
+func CompressEnterGroup(input string) string {
+	var res strings.Builder
+
+	lastIsEnter := false
+	for _, r := range input {
+		if r == '\n' || r == '\r' || r == 0x85 || r == '\f' || r == '\v' {
+			if lastIsEnter {
+				continue
+			} else {
+				lastIsEnter = true
+				res.WriteRune('\n')
+			}
+		} else {
+			lastIsEnter = false
+			res.WriteRune(r)
+		}
+	}
+
+	return res.String()
+}
+
+func Compress(input string) string {
+	var res strings.Builder
+
+	lastIsSpace := false
+	for _, r := range input {
+		if unicode.IsSpace(r) {
+			if lastIsSpace {
+				continue
+			} else {
+				lastIsSpace = true
+				res.WriteRune(' ')
+			}
+		} else {
+			lastIsSpace = false
+			res.WriteRune(r)
+		}
+	}
+
+	return res.String()
+}
+
+func CompressAuto(input string, target int) (string, bool) {
+	dest := input
+
+	if len(dest) <= target {
+		return dest, true
+	}
+
+	if dest = CompressSpaces(dest); len(dest) <= target {
+		return dest, true
+	}
+
+	if dest = CompressEnter(dest); len(dest) <= target {
+		return dest, true
+	}
+
+	if dest = CompressTTab(dest); len(dest) <= target {
+		return dest, true
+	}
+
+	if dest = CompressFormFeed(dest); len(dest) <= target {
+		return dest, true
+	}
+
+	if dest = CompressVTab(dest); len(dest) <= target {
+		return dest, true
+	}
+
+	if dest = Compress0xA0(dest); len(dest) <= target {
+		return dest, true
+	}
+
+	if dest = Compress0x85(dest); len(dest) <= target {
+		return dest, true
+	}
+
+	if dest = CompressSpacesGroup(dest); len(dest) <= target {
+		return dest, true
+	}
+
+	if dest = CompressEnterGroup(dest); len(dest) <= target {
+		return dest, true
+	}
+
+	if dest = Compress(dest); len(dest) <= target {
+		return dest, true
+	}
+
+	return dest, false
+}
+
+func IsEmptyLine(str string) bool {
+	for _, r := range str {
+		if !unicode.IsSpace(r) {
+			return false
+		}
+	}
+
+	return true
+}

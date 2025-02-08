@@ -34,12 +34,20 @@ func initFlag() (err error) {
 	flag.StringVar(&SMTPAddress, "smtp-address", SMTPAddress, "smtp service address, example: smtp.qiye.aliyun.com:465")
 	flag.StringVar(&SMTPUser, "smtp-user", SMTPUser, "smtp user name")
 	flag.StringVar(&SMTPPassword, "smtp-password", SMTPPassword, "smtp password")
-	flag.StringVar(&SMTPRecipient, "smtp-recipient", SMTPRecipient, "recipients, comma separated")
+	flag.StringVar(&SMTPRecipient, "smtp-recipient", SMTPRecipient, "smtp recipients, comma separated")
+
+	flag.StringVar(&IMAPAddress, "imap-address", IMAPAddress, "imap service address, example: imap.qiye.aliyun.com:993")
+	flag.StringVar(&IMAPUser, "imap-user", IMAPUser, "imap user name")
+	flag.StringVar(&IMAPPassword, "imap-password", IMAPPassword, "imap password")
+	flag.StringVar(&IMAPRecipient, "imap-recipient", IMAPRecipient, "imap recipients, comma separated")
+	flag.StringVar(&IMAPMailBox, "imap-mailbox", IMAPMailBox, "imap mail box")
 
 	flag.StringVar(&SQLitePath, "sqlite-path", SQLitePath, "sqlite path")
 	flag.BoolVar(&SQLiteActiveClose, "sqlite-active-close", SQLiteActiveClose, "sqlite uses active shutdown. note: usually it does not need to be enabled.")
 
 	flag.StringVar(&Origin, "origin", Origin, "cors allow origin")
+
+	flag.StringVar(&_TimeZoom, "time-zoom", _TimeZoom, "the time zoom, default is Local")
 
 	flag.BoolVar(&DryRun, "dry-run", DryRun, "only parser the options")
 
@@ -56,6 +64,8 @@ func initFlag() (err error) {
 	flag.BoolVar(&ShowOption, "s", ShowOption, "show the option")
 
 	flag.Parse()
+
+	_ = TimeZoom() // 先加载一次Location
 
 	return nil
 }

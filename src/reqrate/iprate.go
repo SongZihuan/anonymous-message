@@ -1,4 +1,4 @@
-package iprate
+package reqrate
 
 import (
 	"context"
@@ -6,8 +6,8 @@ import (
 	"time"
 )
 
-func CheckIP(ip string, exp time.Duration) int64 {
-	key := fmt.Sprintf("ip:[%s]", ip)
+func CheckHttpReqIP(ip string, exp time.Duration) int64 {
+	key := fmt.Sprintf("req:ip:[%s]", ip)
 	res := rdb.Incr(context.Background(), key)
 	if res.Err() != nil {
 		return -1

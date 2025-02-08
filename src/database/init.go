@@ -19,7 +19,7 @@ func InitSQLite() error {
 		return fmt.Errorf("connect to sqlite (%s) failed: %s", flagparser.SQLitePath, err)
 	}
 
-	err = _db.AutoMigrate(&Mail{})
+	err = _db.AutoMigrate(&MailRecord{}, &AMMail{}, &IMAPMail{}, &SystemNotifyMail{}, &SMTPRecord{}, &SMTPRecipientRecord{})
 	if err != nil {
 		return fmt.Errorf("migrate sqlite (%s) failed: %s", flagparser.SQLitePath, err)
 	}

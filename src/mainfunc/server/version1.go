@@ -1,14 +1,18 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/SongZihuan/anonymous-message/src/database"
+	"github.com/SongZihuan/anonymous-message/src/email/imapserver"
 	"github.com/SongZihuan/anonymous-message/src/engine"
 	"github.com/SongZihuan/anonymous-message/src/flagparser"
-	"github.com/SongZihuan/anonymous-message/src/iprate"
+	"github.com/SongZihuan/anonymous-message/src/reqrate"
 	"github.com/SongZihuan/anonymous-message/src/signalchan"
+	"github.com/SongZihuan/anonymous-message/src/utils"
 	"net/http"
+	"time"
 )
 
 func MainV1() (exitcode int) {
@@ -62,12 +66,12 @@ func MainV1() (exitcode int) {
 		return 0
 	}
 
-	err = iprate.InitRedis()
+	err = reqrate.InitRedis()
 	if err != nil {
 		fmt.Printf("init redis fail: %s\n", err.Error())
 		return 1
 	}
-	defer iprate.CloseRedis()
+	defer reqrate.CloseRedis()
 
 	err = database.InitSQLite()
 	if err != nil {
@@ -75,6 +79,18 @@ func MainV1() (exitcode int) {
 		return 1
 	}
 	defer database.CloseSQLite()
+
+	imapstopchan, err := imapserver.StartIMAPServer()
+	if err != nil {
+		fmt.Printf("init imap fail: %s\n", err.Error())
+		return 1
+	}
+	defer func() {
+		if imapstopchan != nil {
+			close(imapstopchan)
+			imapstopchan = nil
+		}
+	}()
 
 	err = engine.InitEngine()
 	if err != nil {
@@ -92,22 +108,48 @@ func MainV1() (exitcode int) {
 	var httpchan = make(chan error)
 	defer func() {
 		close(httpchan)
+		httpchan = nil
 	}()
+
+	server := http.Server{
+		Addr:    flagparser.HttpAddress,
+		Handler: engine.Engine,
+	}
 
 	go func() {
 		fmt.Printf("Http Server start on: %s\n", flagparser.HttpAddress)
-		httpchan <- http.ListenAndServe(flagparser.HttpAddress, engine.Engine)
+		err := server.ListenAndServe()
+		if utils.IsChanOpen(httpchan) {
+			httpchan <- err
+		}
+	}()
+
+	defer func() {
+		time.Sleep(1 * time.Second)
 	}()
 
 	select {
 	case <-signalchan.SignalChan:
 		fmt.Printf("Server closed: safe\n")
+		if utils.IsChanOpen(imapstopchan) {
+			imapstopchan <- true
+		}
+
+		ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancelFunc()
+
+		_ = server.Shutdown(ctx)
 		return 0
 	case err := <-httpchan:
+		if utils.IsChanOpen(imapstopchan) {
+			imapstopchan <- true
+		}
+
 		if errors.Is(err, http.ErrServerClosed) {
 			fmt.Printf("Http Server closed: safe\n")
 			return 0
 		}
+
 		fmt.Printf("Http Server error closed: %s\n", err.Error())
 		return 1
 	}
