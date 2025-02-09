@@ -34,6 +34,7 @@ type AMMail struct {
 	Model
 	MailID         string         `gorm:"column:mail_id;type:VARCHAR(100);not null;uniqueIndex;"`
 	Name           string         `gorm:"column:name;type:VARCHAR(40);not null"`
+	Email          string         `gorm:"column:email;type:VARCHAR(128);not null"`
 	Content        string         `gorm:"column:content;type:TEXT;not null"`
 	Refer          string         `gorm:"column:refer;type:VARCHAR(60);not null"`
 	Origin         string         `gorm:"column:origin;type:VARCHAR(60);not null"`

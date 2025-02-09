@@ -31,18 +31,19 @@ func SaveMailRecord(MailID string, MailType string) error {
 	return nil
 }
 
-func SaveAMMail(mailID string, name string, content string, refer string, origin string, host string, clientIP string, t time.Time) error {
+func SaveAMMail(mailID string, name string, email string, content string, refer string, origin string, host string, clientIP string, t time.Time) error {
 	if db == nil {
 		return nil
 	}
 
-	if utils.GetAMMailID(name, content, refer, origin, host, t) != mailID {
+	if utils.GetAMMailID(name, email, content, refer, origin, host, t) != mailID {
 		return fmt.Errorf("mail id check failed")
 	}
 
 	mail := &AMMail{
 		MailID:      mailID,
 		Name:        name,
+		Email:       email,
 		Content:     content,
 		Refer:       refer,
 		Origin:      origin,

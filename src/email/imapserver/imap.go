@@ -570,9 +570,9 @@ func StartIMAPServer() (chan bool, error) {
 										msgBuilder.WriteString(fmt.Sprintf("邮件日期: %s %s\n", messageDate.Format("2006-01-02 15:04:05"), messageDate.Location().String()))
 
 										if bodySafe {
-											msgBuilder.WriteString(fmt.Sprintf("邮件内容是否存在不安全因素：不存在不安全因素\n"))
+											msgBuilder.WriteString(fmt.Sprintf("邮件内容是否安全：是\n"))
 										} else {
-											msgBuilder.WriteString(fmt.Sprintf("邮件内容是否存在不安全因素：存在不安全因素，已被移除\n"))
+											msgBuilder.WriteString(fmt.Sprintf("邮件内容是否安全：否，已处理\n"))
 										}
 
 										msgBuilder.WriteString(fmt.Sprintf("消息长度：%d\n", len(bodyStr)))

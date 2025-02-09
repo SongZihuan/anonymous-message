@@ -80,7 +80,7 @@ func HandlerMessage(c *gin.Context) {
 		JSON(200, &ReturnData{
 			Code:       -1,
 			Success:    false,
-			Message:    "留言信息错误，请通过邮件 songzihuan@song-zh.com 留言。",
+			Message:    "留言信息错误，请通过电子邮件留言。",
 			ErrMessage: err.Error(),
 		})
 		return
@@ -280,7 +280,7 @@ func HandlerMessage(c *gin.Context) {
 		JSON(200, &ReturnData{
 			Code:       -9,
 			Success:    false,
-			Message:    "留言信息错误，请通过邮件 songzihuan@song-zh.com 留言。",
+			Message:    "留言信息错误，请通过电子邮件留言。",
 			ErrMessage: "Refer超过50个字符",
 		})
 		return
@@ -291,20 +291,20 @@ func HandlerMessage(c *gin.Context) {
 		JSON(200, &ReturnData{
 			Code:       -10,
 			Success:    false,
-			Message:    "留言信息错误，请通过邮件 songzihuan@song-zh.com 留言。",
+			Message:    "留言信息错误，请通过电子邮件留言。",
 			ErrMessage: "Refer不安全",
 		})
 		return
 	}
 
 	now := time.Now().In(flagparser.TimeZoom())
-	mailID := utils.GetAMMailID(safeName, safeMsg, safeRefer, origin, c.Request.Host, now)
+	mailID := utils.GetAMMailID(safeName, data.Email, safeMsg, safeRefer, origin, c.Request.Host, now)
 
 	vxchan := make(chan bool, 2)
 	emailchan := make(chan bool, 2)
 	thankchan := make(chan bool, 2)
 
-	go func(mailID string, name string, content string, refer string, origin string, host string, clientIP string, t time.Time, vxchan chan bool, emailchan chan bool, thankchan chan bool) {
+	go func(mailID string, name string, email string, content string, refer string, origin string, host string, clientIP string, t time.Time, vxchan chan bool, emailchan chan bool, thankchan chan bool) {
 		defer func() {
 			defer func() {
 				_ = recover() // 防止chan关闭
@@ -326,7 +326,7 @@ func HandlerMessage(c *gin.Context) {
 			}
 		}()
 
-		err := sender.AMDataBase(mailID, name, content, refer, origin, host, clientIP, t)
+		err := sender.AMDataBase(mailID, name, email, content, refer, origin, host, clientIP, t)
 		if err != nil {
 			fmt.Printf("数据库提交消息出现错误: %s", err.Error())
 			vxchan <- false
@@ -338,7 +338,7 @@ func HandlerMessage(c *gin.Context) {
 		vxchan <- true
 		emailchan <- true
 		thankchan <- true
-	}(mailID, safeName, safeMsg, safeRefer, origin, c.Request.Host, clientIP, now, vxchan, emailchan, thankchan)
+	}(mailID, safeName, data.Email, safeMsg, safeRefer, origin, c.Request.Host, clientIP, now, vxchan, emailchan, thankchan)
 
 	go func(vxchan chan bool) {
 		defer close(vxchan)
@@ -370,13 +370,24 @@ func HandlerMessage(c *gin.Context) {
 
 			msgBuilder.WriteString(fmt.Sprintf("Origin: %s\n", origin))
 			msgBuilder.WriteString(fmt.Sprintf("Host: %s\n", c.Request.Host))
+			msgBuilder.WriteString(fmt.Sprintf("IP地址：%s\n", clientIP))
 
 			msgBuilder.WriteString(fmt.Sprintf("名字：%s\n", safeName))
 			if !isSafeName {
 				msgBuilder.WriteString(fmt.Sprintf("注意：原名字可能包含不安全内容，已被删除（原名字长度：%d）\n", len(data.Name)))
 			}
 
-			msgBuilder.WriteString(fmt.Sprintf("IP地址：%s\n", clientIP))
+			if isAnonymous {
+				msgBuilder.WriteString(fmt.Sprintf("是否匿名：是\n"))
+			} else {
+				msgBuilder.WriteString(fmt.Sprintf("是否匿名：否\n"))
+			}
+
+			if data.Email != "" {
+				msgBuilder.WriteString(fmt.Sprintf("邮箱：%s\n", data.Email))
+			} else {
+				msgBuilder.WriteString(fmt.Sprintf("邮箱：未预留\n"))
+			}
 
 			if !isSafeMsg {
 				msgBuilder.WriteString(fmt.Sprintf("注意：消息可能包含不安全内容，已被删除（消息原长度：%d）\n", len(data.Message)))
@@ -451,13 +462,13 @@ func HandlerMessage(c *gin.Context) {
 			defer func() {
 				if r := recover(); r != nil {
 					if _err, ok := r.(error); ok {
-						fmt.Printf("邮件发送消息出现致命错误: %s\n", _err.Error())
+						fmt.Printf("电子邮件发送消息出现致命错误: %s\n", _err.Error())
 						if err != nil {
 							err = _err
 							return
 						}
 					} else {
-						fmt.Printf("邮件发送消息出现致命错误（非error）: %v\n", r)
+						fmt.Printf("电子邮件发送消息出现致命错误（非error）: %v\n", r)
 						if err != nil {
 							err = fmt.Errorf("%v", r)
 							return
@@ -474,13 +485,24 @@ func HandlerMessage(c *gin.Context) {
 
 			msgBuilder.WriteString(fmt.Sprintf("Origin: %s\n", origin))
 			msgBuilder.WriteString(fmt.Sprintf("Host: %s\n", c.Request.Host))
+			msgBuilder.WriteString(fmt.Sprintf("IP地址：%s\n", clientIP))
 
 			msgBuilder.WriteString(fmt.Sprintf("名字：%s\n", safeName))
 			if !isSafeName {
 				msgBuilder.WriteString(fmt.Sprintf("注意：原名字可能包含不安全内容，已被删除（原名字长度：%d）\n", len(data.Name)))
 			}
 
-			msgBuilder.WriteString(fmt.Sprintf("IP地址：%s\n", clientIP))
+			if isAnonymous {
+				msgBuilder.WriteString(fmt.Sprintf("是否匿名：是\n"))
+			} else {
+				msgBuilder.WriteString(fmt.Sprintf("是否匿名：否\n"))
+			}
+
+			if data.Email != "" {
+				msgBuilder.WriteString(fmt.Sprintf("邮箱：%s\n", data.Email))
+			} else {
+				msgBuilder.WriteString(fmt.Sprintf("邮箱：未预留\n"))
+			}
 
 			if !isSafeMsg {
 				msgBuilder.WriteString(fmt.Sprintf("注意：消息可能包含不安全内容，已被删除（消息原长度：%d）\n", len(data.Message)))
@@ -493,7 +515,7 @@ func HandlerMessage(c *gin.Context) {
 
 			smtpID, err = sender.AMEmail(msg, origin, refer, now)
 			if err != nil {
-				fmt.Printf("邮件发送消息出现错误: %s\n", err.Error())
+				fmt.Printf("电子邮件发送消息出现错误: %s\n", err.Error())
 				return "", smtpID, err
 			}
 

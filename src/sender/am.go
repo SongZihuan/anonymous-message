@@ -9,8 +9,8 @@ import (
 	"time"
 )
 
-func AMDataBase(mailID string, name string, content string, refer string, origin string, host string, clientIP string, t time.Time) error {
-	err := database.SaveAMMail(mailID, name, content, refer, origin, host, clientIP, t)
+func AMDataBase(mailID string, name string, email string, content string, refer string, origin string, host string, clientIP string, t time.Time) error {
+	err := database.SaveAMMail(mailID, name, email, content, refer, origin, host, clientIP, t)
 	if err != nil {
 		return &internal.SendError{
 			Code:    -1,
