@@ -37,16 +37,16 @@ const (
 
 var ErrRateLimit = fmt.Errorf("rate limit")
 
-func SendToSelf(subject string, msg string, t time.Time) (string, error) {
-	subject = fmt.Sprintf("【%s 消息提醒】 %s", resource.Name, subject)
+var toAddr []*mail.Address
+var allowSender map[string]bool
 
-	fromAddr := &mail.Address{
-		Name:    resource.Name,
-		Address: flagparser.SMTPUser,
+func InitSmtp() error {
+	if flagparser.SMTPAddress == "" || flagparser.SMTPUser == "" {
+		return nil
 	}
 
 	recipientList := strings.Split(flagparser.SMTPRecipient, ",")
-	toAddr := make([]*mail.Address, 0, len(recipientList))
+	toAddr = make([]*mail.Address, 0, len(recipientList))
 
 	for _, rec := range recipientList {
 		rec = strings.TrimSpace(rec)
@@ -65,15 +65,57 @@ func SendToSelf(subject string, msg string, t time.Time) (string, error) {
 		toAddr = append(toAddr, addr)
 	}
 
-	smtpID, err := sendTo(subject, msg, fromAddr, toAddr, "", t)
+	if len(toAddr) == 0 {
+		return fmt.Errorf("not any valid email address to be self recipient")
+	}
+
+	senderList := strings.Split(flagparser.SMTPSender, ",")
+	allowSender = make(map[string]bool, len(recipientList)+1)
+
+	allowSender[flagparser.SMTPUser] = true
+
+	for _, rec := range senderList {
+		rec = strings.TrimSpace(rec)
+
+		addr, err := mail.ParseAddress(rec)
+		if err != nil {
+			fmt.Printf("%s parser failled, ignore\n", rec)
+			continue
+		}
+
+		if !utils.IsValidEmail(addr.Address) {
+			fmt.Printf("%s is not a valid email, ignore\n", addr.Address)
+			continue
+		}
+
+		allowSender[addr.Address] = true
+	}
+
+	return nil
+}
+
+func SendToSelf(subject string, msg string, t time.Time) (string, error) {
+	if flagparser.SMTPAddress == "" || flagparser.SMTPUser == "" {
+		return "", notSMTPUser
+	}
+
+	subject = fmt.Sprintf("【%s 消息提醒】 %s", resource.Name, subject)
+
+	smtpID, err := sendTo(subject, msg, nil, nil, toAddr, "", t)
 	if err != nil {
 		return "", err
 	}
+
+	_ = SMTPSendTypeToSelf // 假装使用一下这个常量
 
 	return smtpID, nil
 }
 
 func SendThankMsg(subject string, messageID string, fromAddr *mail.Address, toAddr *mail.Address, replyAddr *mail.Address) (string, error) {
+	if flagparser.SMTPAddress == "" || flagparser.SMTPUser == "" {
+		return "", notSMTPUser
+	}
+
 	if replyAddr.Address == "" || !utils.IsValidEmail(replyAddr.Address) {
 		return "", fmt.Errorf("invalid reply address")
 	}
@@ -95,7 +137,13 @@ func SendThankMsg(subject string, messageID string, fromAddr *mail.Address, toAd
 		toNameAndAddr = toAddr.String()
 	}
 
+	sender := flagparser.SMTPUser
+	if yes, ok := allowSender[toAddr.Address]; ok && yes {
+		sender = ""
+	}
+
 	data := &emailtemplate.ImapThankEmailModel{
+		SenderAddr:    sender,
 		FromName:      fromName,
 		ToNameAndAddr: toNameAndAddr,
 		ReplyAddr:     replyAddr.Address,
@@ -119,7 +167,7 @@ func SendThankMsg(subject string, messageID string, fromAddr *mail.Address, toAd
 	from := toAddr
 	to := []*mail.Address{replyAddr}
 
-	smtpID, err := sendTo(subject, msg, from, to, messageID, now)
+	smtpID, err := sendTo(subject, msg, from, nil, to, messageID, now)
 	if err != nil {
 		return "", err
 	}
@@ -128,6 +176,10 @@ func SendThankMsg(subject string, messageID string, fromAddr *mail.Address, toAd
 }
 
 func SendErrorMsg(subject string, messageID string, fromAddr *mail.Address, toAddr *mail.Address, replyAddr *mail.Address, errorMsg string) (string, error) {
+	if flagparser.SMTPAddress == "" || flagparser.SMTPUser == "" {
+		return "", notSMTPUser
+	}
+
 	if errorMsg == "" {
 		return "", fmt.Errorf("error msg is empty")
 	}
@@ -153,7 +205,13 @@ func SendErrorMsg(subject string, messageID string, fromAddr *mail.Address, toAd
 		toNameAndAddr = toAddr.String()
 	}
 
+	sender := flagparser.SMTPUser
+	if yes, ok := allowSender[toAddr.Address]; ok && yes {
+		sender = ""
+	}
+
 	data := &emailtemplate.ImapErrorEmailModel{
+		SenderAddr:    sender,
 		FromName:      fromName,
 		ToNameAndAddr: toNameAndAddr,
 		ErrorMsg:      errorMsg,
@@ -178,7 +236,7 @@ func SendErrorMsg(subject string, messageID string, fromAddr *mail.Address, toAd
 	from := toAddr
 	to := []*mail.Address{replyAddr}
 
-	smtpID, err := sendTo(subject, msg, from, to, messageID, now)
+	smtpID, err := sendTo(subject, msg, from, nil, to, messageID, now)
 	if err != nil {
 		return "", err
 	}
@@ -188,7 +246,11 @@ func SendErrorMsg(subject string, messageID string, fromAddr *mail.Address, toAd
 
 var notSMTPUser = fmt.Errorf("not smtp user")
 
-func sendTo(subject string, msg string, fromAddr *mail.Address, toAddr []*mail.Address, messageID string, t time.Time) (smtpID string, err error) {
+func sendTo(subject string, msg string, fromAddr *mail.Address, replyToAddr *mail.Address, toAddr []*mail.Address, messageID string, t time.Time) (smtpID string, err error) {
+	if flagparser.SMTPAddress == "" || flagparser.SMTPUser == "" {
+		return smtpID, notSMTPUser
+	}
+
 	defer func() {
 		if smtpID != "" {
 			_ = database.UpdateSMTPRecord(smtpID, err)
@@ -207,15 +269,28 @@ func sendTo(subject string, msg string, fromAddr *mail.Address, toAddr []*mail.A
 	}()
 
 	sender := flagparser.SMTPUser
-	smtpID = getSMTPMailID(subject, msg, fromAddr, toAddr, messageID, t)
+
+	if fromAddr == nil {
+		fromAddr = &mail.Address{
+			Name:    resource.Name,
+			Address: flagparser.SMTPUser,
+		}
+	} else if yes, ok := allowSender[fromAddr.Address]; ok && yes {
+		sender = fromAddr.Address
+	}
+
+	if replyToAddr == nil {
+		replyToAddr = &mail.Address{
+			Name:    fromAddr.Name,
+			Address: fromAddr.Address,
+		}
+	}
+
+	smtpID = getSMTPMailID(subject, msg, fromAddr, replyToAddr, toAddr, messageID, t)
 
 	err = database.SaveSMTPRecord(smtpID, sender, subject, msg, fromAddr, toAddr, messageID, t)
 	if err != nil {
 		return "", err
-	}
-
-	if flagparser.SMTPAddress == "" || flagparser.SMTPUser == "" {
-		return smtpID, notSMTPUser
 	}
 
 	const missingPort = "missing port in address"
@@ -330,6 +405,7 @@ func sendTo(subject string, msg string, fromAddr *mail.Address, toAddr []*mail.A
 	gomsg := gomail.NewMessage()
 	gomsg.SetHeader("From", fromAddr.String())
 	gomsg.SetHeader("To", recList...)
+	gomsg.SetHeader("Reply-To", replyToAddr.String())
 	gomsg.SetHeader("Subject", subject)
 	gomsg.SetDateHeader("Date", t)
 	if messageID != "" {
@@ -355,13 +431,13 @@ func sendTo(subject string, msg string, fromAddr *mail.Address, toAddr []*mail.A
 	return smtpID, nil
 }
 
-func getSMTPMailID(subject string, msg string, fromAddr *mail.Address, toAddr []*mail.Address, messageID string, t time.Time) string {
+func getSMTPMailID(subject string, msg string, fromAddr *mail.Address, replyToAddr *mail.Address, toAddr []*mail.Address, messageID string, t time.Time) string {
 	rec := make([]string, 0, len(toAddr))
 	for _, to := range toAddr {
 		rec = append(rec, to.String())
 	}
 
-	text := fmt.Sprintf("SMTP-%s\n%s\n%s\n%s\n%s\n%d", subject, msg, fromAddr.String(), strings.Join(rec, ";"), messageID, t.Unix())
+	text := fmt.Sprintf("SMTP-%s\n%s\n%s\n%s\n%s\n%s\n%d", subject, msg, fromAddr.String(), replyToAddr.String(), strings.Join(rec, ";"), messageID, t.Unix())
 	hasher := sha256.New()
 	hasher.Write([]byte(text))
 	return hex.EncodeToString(hasher.Sum(nil))

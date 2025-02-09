@@ -40,6 +40,7 @@ func Print() {
 	fmt.Println("SMTP User Name:", SMTPUser)
 	fmt.Println("SMTP Password:", SMTPPassword)
 	fmt.Println("SMTP Recipient:", SMTPRecipient)
+	fmt.Println("SMTP Sender:", SMTPSender)
 	fmt.Println("IMAP Address:", IMAPAddress)
 	fmt.Println("IMAP User Name:", IMAPUser)
 	fmt.Println("IMAP Password:", IMAPPassword)

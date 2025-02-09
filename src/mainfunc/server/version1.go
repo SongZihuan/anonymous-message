@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/SongZihuan/anonymous-message/src/database"
 	"github.com/SongZihuan/anonymous-message/src/email/imapserver"
+	"github.com/SongZihuan/anonymous-message/src/email/smtpserver"
 	"github.com/SongZihuan/anonymous-message/src/engine"
 	"github.com/SongZihuan/anonymous-message/src/flagparser"
 	"github.com/SongZihuan/anonymous-message/src/reqrate"
@@ -80,6 +81,12 @@ func MainV1() (exitcode int) {
 	}
 	defer database.CloseSQLite()
 
+	err = smtpserver.InitSmtp()
+	if err != nil {
+		fmt.Printf("init smtp server fail: %s\n", err.Error())
+		return 1
+	}
+
 	imapstopchan, err := imapserver.StartIMAPServer()
 	if err != nil {
 		fmt.Printf("init imap fail: %s\n", err.Error())
@@ -135,10 +142,12 @@ func MainV1() (exitcode int) {
 			imapstopchan <- true
 		}
 
-		ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancelFunc()
+		func() {
+			ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancelFunc()
 
-		_ = server.Shutdown(ctx)
+			_ = server.Shutdown(ctx)
+		}()
 		return 0
 	case err := <-httpchan:
 		if utils.IsChanOpen(imapstopchan) {

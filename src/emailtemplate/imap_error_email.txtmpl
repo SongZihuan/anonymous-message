@@ -8,9 +8,9 @@
 ---
 
 {{ .SystemName }}
-
+{{ if ne .SenderAddr "" }}
+实际发件人：{{ .SenderAddr }} 是可信的。
+{{ end }}
 {{ .ToNameAndAddr }}
 {{ .Date }} {{ .DateLocation }}
-{{ if ne .DateLocation "UTC" }}
-{{ .DateUTC }} UTC
-{{ end }}
+{{ if ne .DateLocation "UTC" }}{{ .DateUTC }} UTC{{ end }}

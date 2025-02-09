@@ -15,6 +15,7 @@ var ImapErrorEmail *template.Template
 var ImapThankEmail *template.Template
 
 type ImapErrorEmailModel struct {
+	SenderAddr    string
 	FromName      string
 	ToNameAndAddr string
 	ErrorMsg      string
@@ -26,6 +27,7 @@ type ImapErrorEmailModel struct {
 }
 
 type ImapThankEmailModel struct {
+	SenderAddr    string
 	FromName      string
 	ToNameAndAddr string
 	ReplyAddr     string

@@ -35,6 +35,7 @@ func initFlag() (err error) {
 	flag.StringVar(&SMTPUser, "smtp-user", SMTPUser, "smtp user name")
 	flag.StringVar(&SMTPPassword, "smtp-password", SMTPPassword, "smtp password")
 	flag.StringVar(&SMTPRecipient, "smtp-recipient", SMTPRecipient, "smtp recipients, comma separated")
+	flag.StringVar(&SMTPSender, "smtp-sender", SMTPSender, "smtp sender, comma separated")
 
 	flag.StringVar(&IMAPAddress, "imap-address", IMAPAddress, "imap service address, example: imap.qiye.aliyun.com:993")
 	flag.StringVar(&IMAPUser, "imap-user", IMAPUser, "imap user name")

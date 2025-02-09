@@ -10,6 +10,7 @@ var SMTPAddress string = "smtp.qiye.aliyun.com:465"
 var SMTPUser string = ""
 var SMTPPassword string = ""
 var SMTPRecipient string = ""
+var SMTPSender string = ""
 
 var IMAPAddress string = "imap.qiye.aliyun.com:993"
 var IMAPUser string = ""
