@@ -48,7 +48,7 @@ func initFlag() (err error) {
 
 	flag.StringVar(&Origin, "origin", Origin, "cors allow origin")
 
-	flag.StringVar(&_TimeZoom, "time-zoom", _TimeZoom, "the time zoom, default is Local")
+	flag.StringVar(&_TimeZone, "time-zone", _TimeZone, "the time zone, default is Local")
 
 	flag.BoolVar(&DryRun, "dry-run", DryRun, "only parser the options")
 
@@ -66,7 +66,7 @@ func initFlag() (err error) {
 
 	flag.Parse()
 
-	_ = TimeZoom() // 先加载一次Location
+	_ = TimeZone() // 先加载一次Location
 
 	return nil
 }

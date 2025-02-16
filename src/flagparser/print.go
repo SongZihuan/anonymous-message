@@ -48,6 +48,6 @@ func Print() {
 	fmt.Println("IMAP MailBox:", IMAPMailBox)
 	fmt.Println("SQLite Path:", SQLitePath)
 	fmt.Println("SQLite Active Close:", SQLiteActiveClose)
-	fmt.Println("Time Zoom (use set) : ", _TimeZoom)
-	fmt.Println("Time Zoom: ", TimeZoom())
+	fmt.Println("Time Zone (use set) : ", _TimeZone)
+	fmt.Println("Time Zone: ", TimeZone())
 }

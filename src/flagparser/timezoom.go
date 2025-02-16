@@ -10,9 +10,9 @@ import (
 var location *time.Location
 var locationOnce sync.Once
 
-func TimeZoom() *time.Location {
+func TimeZone() *time.Location {
 	locationOnce.Do(func() {
-		if strings.ToLower(_TimeZoom) == "utc" {
+		if strings.ToLower(_TimeZone) == "utc" {
 			_location := time.UTC
 			if _location == nil {
 				_location = time.Local
@@ -21,7 +21,7 @@ func TimeZoom() *time.Location {
 			if _location != nil {
 				location = _location
 			}
-		} else if strings.ToLower(_TimeZoom) == "local" || _TimeZoom == "" {
+		} else if strings.ToLower(_TimeZone) == "local" || _TimeZone == "" {
 			_location := time.Local
 			if _location == nil {
 				_location = time.UTC
@@ -31,7 +31,7 @@ func TimeZoom() *time.Location {
 				location = _location
 			}
 		} else {
-			_location, err := time.LoadLocation(_TimeZoom)
+			_location, err := time.LoadLocation(_TimeZone)
 			if err != nil || _location == nil {
 				_location = time.UTC
 			}
@@ -42,10 +42,10 @@ func TimeZoom() *time.Location {
 		}
 
 		if location == nil {
-			if _TimeZoom == "UTC" || _TimeZoom == "Local" || _TimeZoom == "" {
+			if _TimeZone == "UTC" || _TimeZone == "Local" || _TimeZone == "" {
 				panic(fmt.Errorf("can not get location UTC or Local"))
 			}
-			panic(fmt.Errorf("can not get location UTC, Local or %s", _TimeZoom))
+			panic(fmt.Errorf("can not get location UTC, Local or %s", _TimeZone))
 		}
 	})
 

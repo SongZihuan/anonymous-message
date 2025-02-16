@@ -23,7 +23,7 @@ var SQLiteActiveClose = false
 
 var Webhook string = ""
 
-var _TimeZoom string = "Local"
+var _TimeZone string = "Local"
 
 var ShowOption = false
 var DryRun = false

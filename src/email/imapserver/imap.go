@@ -219,7 +219,7 @@ func StartIMAPServer() (chan bool, error) {
 							}
 						}()
 
-						now := time.Now().In(flagparser.TimeZoom())
+						now := time.Now().In(flagparser.TimeZone())
 
 						_, err = imapClient.Select(MailBox, nil).Wait()
 						if err != nil {
@@ -285,7 +285,7 @@ func StartIMAPServer() (chan bool, error) {
 
 								subject := buf.Envelope.Subject
 								messageID := buf.Envelope.MessageID
-								messageDate := buf.Envelope.Date.In(flagparser.TimeZoom())
+								messageDate := buf.Envelope.Date.In(flagparser.TimeZone())
 
 								if buf.Envelope.To == nil || len(buf.Envelope.To) == 0 {
 									return // return msg read cycle

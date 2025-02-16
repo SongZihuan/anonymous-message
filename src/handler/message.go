@@ -297,7 +297,7 @@ func HandlerMessage(c *gin.Context) {
 		return
 	}
 
-	now := time.Now().In(flagparser.TimeZoom())
+	now := time.Now().In(flagparser.TimeZone())
 	mailID := utils.GetAMMailID(safeName, data.Email, safeMsg, safeRefer, origin, c.Request.Host, now)
 
 	vxchan := make(chan bool, 2)

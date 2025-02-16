@@ -148,8 +148,8 @@ func SendThankMsg(subject string, messageID string, fromAddr *mail.Address, toAd
 		ToNameAndAddr: toNameAndAddr,
 		ReplyAddr:     replyAddr.Address,
 		SystemName:    resource.Name,
-		Date:          now.In(flagparser.TimeZoom()).Format("2006-01-02 15:04:05"),
-		DateLocation:  flagparser.TimeZoom().String(),
+		Date:          now.In(flagparser.TimeZone()).Format("2006-01-02 15:04:05"),
+		DateLocation:  flagparser.TimeZone().String(),
 		DateUTC:       now.In(time.UTC).Format("2006-01-02 15:04:05"),
 	}
 
@@ -217,8 +217,8 @@ func SendErrorMsg(subject string, messageID string, fromAddr *mail.Address, toAd
 		ErrorMsg:      errorMsg,
 		ReplyAddr:     replyAddr.Address,
 		SystemName:    resource.Name,
-		Date:          now.In(flagparser.TimeZoom()).Format("2006-01-02 15:04:05"),
-		DateLocation:  flagparser.TimeZoom().String(),
+		Date:          now.In(flagparser.TimeZone()).Format("2006-01-02 15:04:05"),
+		DateLocation:  flagparser.TimeZone().String(),
 		DateUTC:       now.In(time.UTC).Format("2006-01-02 15:04:05"),
 	}
 

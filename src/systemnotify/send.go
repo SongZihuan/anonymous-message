@@ -15,7 +15,7 @@ func SendNotify(notifySubject string, notifyContent string) {
 	vxchan := make(chan bool, 2)
 	emailchan := make(chan bool, 2)
 
-	notifyTime := time.Now().In(flagparser.TimeZoom())
+	notifyTime := time.Now().In(flagparser.TimeZone())
 	notifyMailID := utils.GetSNMailID(notifySubject, notifyContent, notifyTime)
 
 	go func(mailID string, subject string, content string, t time.Time, vxchan chan bool, emailchan chan bool) {
