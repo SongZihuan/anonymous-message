@@ -32,6 +32,7 @@ func Print() {
 	fmt.Println("Debug:", Debug)
 	fmt.Println("Origin:", Origin)
 	fmt.Println("HttpAddress:", HttpAddress)
+	fmt.Println("Not Use Proxy Proto:", NotProxyProto)
 	fmt.Println("Webhook:", Webhook)
 	fmt.Println("Redis Address:", RedisAddress)
 	fmt.Println("Redis Password:", RedisPassword)

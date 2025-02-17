@@ -50,6 +50,8 @@ func initFlag() (err error) {
 
 	flag.StringVar(&_TimeZone, "time-zone", _TimeZone, "the time zone, default is Local")
 
+	flag.BoolVar(&NotProxyProto, "not-proxy-proto", NotProxyProto, "not proxy proto")
+
 	flag.BoolVar(&DryRun, "dry-run", DryRun, "only parser the options")
 
 	flag.BoolVar(&Version, "version", Version, "show the version")

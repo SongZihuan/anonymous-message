@@ -25,6 +25,8 @@ var Webhook string = ""
 
 var _TimeZone string = "Local"
 
+var NotProxyProto bool = false
+
 var ShowOption = false
 var DryRun = false
 var Version = false

@@ -12,6 +12,8 @@ import (
 	"github.com/SongZihuan/anonymous-message/src/reqrate"
 	"github.com/SongZihuan/anonymous-message/src/signalchan"
 	"github.com/SongZihuan/anonymous-message/src/utils"
+	"github.com/pires/go-proxyproto"
+	"net"
 	"net/http"
 	"time"
 )
@@ -112,20 +114,40 @@ func MainV1() (exitcode int) {
 	}
 	defer signalchan.CloseSignal()
 
+	server := http.Server{
+		Addr:    flagparser.HttpAddress,
+		Handler: engine.Engine,
+	}
+
+	tcpListener, err := net.Listen("tcp", server.Addr)
+	if err != nil {
+		fmt.Printf("listen on %s: %s\n", server.Addr, err.Error())
+		return 1
+	}
+
+	var listener net.Listener
+	if !flagparser.NotProxyProto {
+		proxyListener := &proxyproto.Listener{
+			Listener:          tcpListener,
+			ReadHeaderTimeout: 10 * time.Second,
+		}
+		listener = proxyListener
+	} else {
+		listener = tcpListener
+	}
+	defer func() {
+		_ = listener.Close()
+	}()
+
 	var httpchan = make(chan error)
 	defer func() {
 		close(httpchan)
 		httpchan = nil
 	}()
 
-	server := http.Server{
-		Addr:    flagparser.HttpAddress,
-		Handler: engine.Engine,
-	}
-
 	go func() {
-		fmt.Printf("Http Server start on: %s\n", flagparser.HttpAddress)
-		err := server.ListenAndServe()
+		fmt.Printf("Http Server start on: %s\n", server.Addr)
+		err := server.Serve(listener)
 		if utils.IsChanOpen(httpchan) {
 			httpchan <- err
 		}
