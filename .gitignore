@@ -21,3 +21,5 @@ go-remote.sh
 
 *.db
 test
+
+*_test.http

@@ -1,22 +1,23 @@
 package flagparser
 
+import resource "github.com/SongZihuan/anonymous-message"
+
 var Debug bool = false
+
 var Origin string = ""
 var HttpAddress string = ":3352"
-var RedisAddress string = "127.0.0.0.1:6379"
-var RedisPassword string = ""
-var RedisDB int = 0
+var WebURL string = "（暂无）"
+var Name string = resource.Name
+
 var SMTPAddress string = "smtp.qiye.aliyun.com:465"
 var SMTPUser string = ""
 var SMTPPassword string = ""
-var SMTPRecipient string = ""
-var SMTPSender string = ""
-
 var IMAPAddress string = "imap.qiye.aliyun.com:993"
 var IMAPUser string = ""
 var IMAPPassword string = ""
-var IMAPRecipient string = ""
-var IMAPMailBox string = "电子信箱"
+var RecipientList string = ""
+var NoticeList string = ""
+var MailBox string = "电子信箱"
 
 var SQLitePath = ""
 var SQLiteActiveClose = false

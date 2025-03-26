@@ -1,53 +1,118 @@
 package reqrate
 
 import (
-	"context"
 	"fmt"
-	"github.com/SongZihuan/anonymous-message/src/utils"
+	"github.com/emersion/go-imap/v2"
+	"golang.org/x/time/rate"
 	"net/mail"
+	"sync"
 	"time"
 )
 
-func CheckSMTPSendAddressRate(sendType string, address *mail.Address, exp time.Duration) int64 {
-	if sendType == "" || address.Address == "" || !utils.IsValidEmail(address.Address) {
-		return -1
-	}
+// RateExp: 计算周期
+// RateMaxCount: 周期内最大发件数量
+const (
+	smtpRateExp      time.Duration = 12 * time.Hour
+	smtpRateMaxCount int           = 3
+)
 
-	key := fmt.Sprintf("smtp:email:%s[%s]", sendType, address.Address)
-	res := rdb.Incr(context.Background(), key)
-	if res.Err() != nil {
-		return -1
-	}
+type SMTPSendType string
 
-	count := res.Val()
+const (
+	SMTPSendTypeToSelf SMTPSendType = "ToSelf"
+	SMTPSendTypeError  SMTPSendType = "Error"
+	SMTPSendTypeThank  SMTPSendType = "Thank"
+)
 
-	if count == 1 {
-		if ok := rdb.Expire(context.Background(), key, exp).Val(); !ok {
-			return -1
-		}
-	}
+type Address any
 
-	return count
+type addressRate struct {
+	Type    SMTPSendType
+	Address string
+	Rate    *rate.Limiter
+	Time    time.Time
+	RateExp time.Duration
 }
 
-func CheckSMTPSendAddressStringRate(sendType string, address string, exp time.Duration) int64 {
-	if sendType == "" || address == "" || !utils.IsValidEmail(address) {
-		return -1
+var smtpRaterMap sync.Map
+
+func getAddressRate(sendType SMTPSendType, address Address) (rater *addressRate) {
+	rater = &addressRate{
+		Type:    sendType,
+		Address: _getAddress(address),
+		Rate:    rate.NewLimiter(rate.Every(smtpRateExp), smtpRateMaxCount),
+		Time:    time.Now(),
+		RateExp: smtpRateExp,
 	}
 
-	key := fmt.Sprintf("smtp:email:%s[%s]", sendType, address)
-	res := rdb.Incr(context.Background(), key)
-	if res.Err() != nil {
-		return -1
+	raterInterface, ok := smtpRaterMap.LoadOrStore(rater.GetName(), rater)
+	rater, ok = raterInterface.(*addressRate)
+	if !ok {
+		panic("sync.map error")
 	}
 
-	count := res.Val()
+	return rater
+}
 
-	if count == 1 {
-		if ok := rdb.Expire(context.Background(), key, exp).Val(); !ok {
-			return -1
-		}
+func (a *addressRate) GetName() string {
+	return _getSMTPAddressName(a.Type, a.Address)
+}
+
+func _getSMTPAddressName(sendType SMTPSendType, address Address) string {
+	return fmt.Sprintf("%s::%s", sendType, _getAddress(address))
+}
+
+func _getAddress(addr Address) string {
+	switch a := addr.(type) {
+	case *mail.Address:
+		return a.Address
+	case mail.Address:
+		return a.Address
+	case *imap.Address:
+		return a.Addr()
+	case imap.Address:
+		return a.Addr()
+	case string:
+		return a
+	default:
+		panic("not a valid address")
 	}
+}
 
-	return count
+func CleanAddressRate() {
+	for range time.Tick(1 * time.Minute) {
+		func() {
+			defer func() {
+				_ = recover()
+			}()
+
+			now := time.Now()
+			delList := make([]any, 0, 10)
+
+			smtpRaterMap.Range(func(key, value any) bool {
+				rater, ok := value.(*addressRate)
+				if !ok {
+					delList = append(delList, key)
+					return true
+				}
+
+				if rater.Time.Add(rater.RateExp).Before(now) {
+					delList = append(delList, key)
+					return true
+				}
+
+				return true
+			})
+
+			for _, v := range delList {
+				_, _ = smtpRaterMap.LoadAndDelete(v)
+			}
+		}()
+	}
+}
+
+func CheckSMTPSendAddressRate(sendType SMTPSendType, address Address) bool {
+	rater := getAddressRate(sendType, address)
+	rater.Time = time.Now()
+	return rater.Rate.Allow()
 }

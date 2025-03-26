@@ -1,7 +1,7 @@
 package internal
 
 import (
-	"github.com/SongZihuan/anonymous-message/src/email/smtpserver"
+	"github.com/SongZihuan/anonymous-message/src/emailserver/smtpserver"
 	"time"
 )
 

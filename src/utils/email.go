@@ -73,10 +73,10 @@ func FormatEmailAddressToHumanStringJustName(ad *mail.Address) string {
 func FormatEmailAddressToHumanStringMustSafe(ad *mail.Address) string {
 	res, err := FormatEmailAddressToHumanStringSafe(ad)
 	if err != nil || res == "" {
-		if strings.Contains(strings.ToLower(ad.Address), "unsafe1@example.com") {
-			return "unsafe2@example.com"
+		if strings.Contains(strings.ToLower(ad.Address), "unsafe1@fake.localhost") {
+			return "unsafe2@fake.localhost"
 		}
-		return "unsafe1@example.com"
+		return "unsafe1@fake.localhost"
 	}
 
 	return res

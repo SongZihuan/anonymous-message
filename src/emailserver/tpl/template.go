@@ -1,4 +1,4 @@
-package emailtemplate
+package tpl
 
 import (
 	_ "embed"
@@ -15,26 +15,28 @@ var ImapErrorEmail *template.Template
 var ImapThankEmail *template.Template
 
 type ImapErrorEmailModel struct {
-	SenderAddr    string
-	FromName      string
-	ToNameAndAddr string
-	ErrorMsg      string
-	ReplyAddr     string
-	SystemName    string
-	Date          string
-	DateLocation  string
-	DateUTC       string
+	UserAddr     string
+	UserName     string
+	MyAddr       string
+	MyName       string
+	MyNameAddr   string
+	ErrorMsg     string
+	Date         string
+	DateLocation string
+	DateUTC      string
+	WebURL       string
 }
 
 type ImapThankEmailModel struct {
-	SenderAddr    string
-	FromName      string
-	ToNameAndAddr string
-	ReplyAddr     string
-	SystemName    string
-	Date          string
-	DateLocation  string
-	DateUTC       string
+	UserAddr     string
+	UserName     string
+	MyAddr       string
+	MyName       string
+	MyNameAddr   string
+	Date         string
+	DateLocation string
+	DateUTC      string
+	WebURL       string
 }
 
 func init() {

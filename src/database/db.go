@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	resource "github.com/SongZihuan/anonymous-message"
+	"github.com/SongZihuan/anonymous-message/src/flagparser"
 	"github.com/SongZihuan/anonymous-message/src/utils"
 	"gorm.io/gorm"
 	netmail "net/mail"
@@ -13,7 +14,7 @@ import (
 
 var ErrNotFound = errors.New("record not found")
 
-func SaveMailRecord(MailID string, MailType string) error {
+func SaveMailRecord(MailID string, MailType MsgType) error {
 	if db == nil {
 		return nil
 	}
@@ -41,17 +42,15 @@ func SaveAMMail(mailID string, name string, email string, content string, refer 
 	}
 
 	mail := &AMMail{
-		MailID:      mailID,
-		Name:        name,
-		Email:       email,
-		Content:     content,
-		Refer:       refer,
-		Origin:      origin,
-		Host:        host,
-		IP:          clientIP,
-		Time:        t,
-		SendWxRobot: false,
-		SendEmail:   false,
+		MailID:  mailID,
+		Name:    name,
+		Email:   email,
+		Content: content,
+		Refer:   refer,
+		Origin:  origin,
+		Host:    host,
+		IP:      clientIP,
+		Time:    t,
 	}
 
 	err := db.Create(mail).Error
@@ -59,7 +58,7 @@ func SaveAMMail(mailID string, name string, email string, content string, refer 
 		return err
 	}
 
-	err = SaveMailRecord(mailID, MailTypeAM)
+	err = SaveMailRecord(mailID, MsgTypeWebsite)
 	if err != nil {
 		return err
 	}
@@ -101,20 +100,18 @@ func SaveIMAPMail(mailID string, messageID string, sender string, from string, t
 	}
 
 	mail := &IMAPMail{
-		MailID:      mailID,
-		MessageID:   messageID,
-		Sender:      sender,
-		From:        from,
-		To:          to,
-		ReplyTo:     replyTo,
-		Subject:     subject,
-		Content:     content,
-		SendTime:    date,
-		Time:        t,
-		SendWxRobot: false,
-		SendEmail:   false,
-		Version:     resource.Version,
-		SystemName:  resource.Name,
+		MailID:     mailID,
+		MessageID:  messageID,
+		Sender:     sender,
+		From:       from,
+		To:         to,
+		ReplyTo:    replyTo,
+		Subject:    subject,
+		Content:    content,
+		SendTime:   date,
+		Time:       t,
+		Version:    resource.Version,
+		SystemName: flagparser.Name,
 	}
 
 	err := db.Create(mail).Error
@@ -122,7 +119,7 @@ func SaveIMAPMail(mailID string, messageID string, sender string, from string, t
 		return err
 	}
 
-	err = SaveMailRecord(mailID, MailTypeIMAP)
+	err = SaveMailRecord(mailID, MsgTypeEmail)
 	if err != nil {
 		return err
 	}
@@ -156,14 +153,12 @@ func SaveSNMail(mailID string, subject string, content string, t time.Time) erro
 	}
 
 	mail := &SystemNotifyMail{
-		MailID:      mailID,
-		Subject:     subject,
-		Content:     content,
-		Time:        t,
-		SendWxRobot: false,
-		SendEmail:   false,
-		Version:     resource.Version,
-		SystemName:  resource.Name,
+		MailID:     mailID,
+		Subject:    subject,
+		Content:    content,
+		Time:       t,
+		Version:    resource.Version,
+		SystemName: flagparser.Name,
 	}
 
 	err := db.Create(mail).Error
@@ -171,7 +166,7 @@ func SaveSNMail(mailID string, subject string, content string, t time.Time) erro
 		return err
 	}
 
-	err = SaveMailRecord(mailID, MailTypeSystemNotify)
+	err = SaveMailRecord(mailID, MsgTypeSystem)
 	if err != nil {
 		return err
 	}
@@ -179,7 +174,7 @@ func SaveSNMail(mailID string, subject string, content string, t time.Time) erro
 	return nil
 }
 
-func UpdateAMWxRobotSendMsg(mailID string, msg string, sendErr error) error {
+func UpdateAMWxRobotSendMsg(mailID string, wxrobotID string) error {
 	if db == nil {
 		return nil
 	}
@@ -192,27 +187,9 @@ func UpdateAMWxRobotSendMsg(mailID string, msg string, sendErr error) error {
 		return err
 	}
 
-	mail.SendWxRobot = true
-	if sendErr == nil {
-		mail.WxRobotErr = sql.NullString{
-			Valid: false,
-		}
-	} else {
-		errMsg := sendErr.Error()
-
-		if len(errMsg) > 190 {
-			errMsg = errMsg[:190]
-		}
-
-		mail.WxRobotErr = sql.NullString{
-			Valid:  true,
-			String: errMsg,
-		}
-	}
-
-	mail.WxRobotMessage = sql.NullString{
-		Valid:  true,
-		String: msg,
+	mail.WxRobotID = sql.NullString{
+		Valid:  wxrobotID != "",
+		String: wxrobotID,
 	}
 
 	err = db.Save(&mail).Error
@@ -223,7 +200,7 @@ func UpdateAMWxRobotSendMsg(mailID string, msg string, sendErr error) error {
 	return nil
 }
 
-func UpdateIMAPWxRobotSendMsg(mailID string, msg string, sendErr error) error {
+func UpdateIMAPWxRobotSendMsg(mailID string, wxrobotID string) error {
 	if db == nil {
 		return nil
 	}
@@ -236,27 +213,9 @@ func UpdateIMAPWxRobotSendMsg(mailID string, msg string, sendErr error) error {
 		return err
 	}
 
-	mail.SendWxRobot = true
-	if sendErr == nil {
-		mail.WxRobotErr = sql.NullString{
-			Valid: false,
-		}
-	} else {
-		errMsg := sendErr.Error()
-
-		if len(errMsg) > 190 {
-			errMsg = errMsg[:190]
-		}
-
-		mail.WxRobotErr = sql.NullString{
-			Valid:  true,
-			String: errMsg,
-		}
-	}
-
-	mail.WxRobotMessage = sql.NullString{
-		Valid:  true,
-		String: msg,
+	mail.WxRobotID = sql.NullString{
+		Valid:  wxrobotID != "",
+		String: wxrobotID,
 	}
 
 	err = db.Save(&mail).Error
@@ -267,7 +226,7 @@ func UpdateIMAPWxRobotSendMsg(mailID string, msg string, sendErr error) error {
 	return nil
 }
 
-func UpdateSNWxRobotSendMsg(mailID string, msg string, sendErr error) error {
+func UpdateSNWxRobotSendMsg(mailID string, wxrobotID string) error {
 	if db == nil {
 		return nil
 	}
@@ -280,27 +239,9 @@ func UpdateSNWxRobotSendMsg(mailID string, msg string, sendErr error) error {
 		return err
 	}
 
-	mail.SendWxRobot = true
-	if sendErr == nil {
-		mail.WxRobotErr = sql.NullString{
-			Valid: false,
-		}
-	} else {
-		errMsg := sendErr.Error()
-
-		if len(errMsg) > 190 {
-			errMsg = errMsg[:190]
-		}
-
-		mail.WxRobotErr = sql.NullString{
-			Valid:  true,
-			String: errMsg,
-		}
-	}
-
-	mail.WxRobotMessage = sql.NullString{
-		Valid:  true,
-		String: msg,
+	mail.WxRobotID = sql.NullString{
+		Valid:  wxrobotID != "",
+		String: wxrobotID,
 	}
 
 	err = db.Save(&mail).Error
@@ -311,7 +252,7 @@ func UpdateSNWxRobotSendMsg(mailID string, msg string, sendErr error) error {
 	return nil
 }
 
-func UpdateAMEmailSendMsg(mailID string, msg string, smtpID string, sendErr error) error {
+func UpdateAMEmailSendMsg(mailID string, smtpID string) error {
 	if db == nil {
 		return nil
 	}
@@ -324,32 +265,9 @@ func UpdateAMEmailSendMsg(mailID string, msg string, smtpID string, sendErr erro
 		return err
 	}
 
-	mail.SendEmail = true
-	if sendErr == nil {
-		mail.EmailErr = sql.NullString{
-			Valid: false,
-		}
-	} else {
-		errMsg := sendErr.Error()
-
-		if len(errMsg) > 190 {
-			errMsg = errMsg[:190]
-		}
-
-		mail.EmailErr = sql.NullString{
-			Valid:  true,
-			String: errMsg,
-		}
-	}
-
 	mail.EmailID = sql.NullString{
-		Valid:  true,
+		Valid:  smtpID != "",
 		String: smtpID,
-	}
-
-	mail.EmailMessage = sql.NullString{
-		Valid:  true,
-		String: msg,
 	}
 
 	err = db.Save(&mail).Error
@@ -360,7 +278,7 @@ func UpdateAMEmailSendMsg(mailID string, msg string, smtpID string, sendErr erro
 	return nil
 }
 
-func UpdateIMAPEmailSendMsg(mailID string, msg string, smtpID string, sendErr error) error {
+func UpdateIMAPEmailSendMsg(mailID string, smtpID string) error {
 	if db == nil {
 		return nil
 	}
@@ -373,32 +291,9 @@ func UpdateIMAPEmailSendMsg(mailID string, msg string, smtpID string, sendErr er
 		return err
 	}
 
-	mail.SendEmail = true
-	if sendErr == nil {
-		mail.EmailErr = sql.NullString{
-			Valid: false,
-		}
-	} else {
-		errMsg := sendErr.Error()
-
-		if len(errMsg) > 190 {
-			errMsg = errMsg[:190]
-		}
-
-		mail.EmailErr = sql.NullString{
-			Valid:  true,
-			String: errMsg,
-		}
-	}
-
 	mail.EmailID = sql.NullString{
-		Valid:  true,
+		Valid:  smtpID != "",
 		String: smtpID,
-	}
-
-	mail.EmailMessage = sql.NullString{
-		Valid:  true,
-		String: msg,
 	}
 
 	err = db.Save(&mail).Error
@@ -409,7 +304,7 @@ func UpdateIMAPEmailSendMsg(mailID string, msg string, smtpID string, sendErr er
 	return nil
 }
 
-func UpdateSNEmailSendMsg(mailID string, msg string, smtpID string, sendErr error) error {
+func UpdateSNEmailSendMsg(mailID string, smtpID string) error {
 	if db == nil {
 		return nil
 	}
@@ -422,32 +317,9 @@ func UpdateSNEmailSendMsg(mailID string, msg string, smtpID string, sendErr erro
 		return err
 	}
 
-	mail.SendEmail = true
-	if sendErr == nil {
-		mail.EmailErr = sql.NullString{
-			Valid: false,
-		}
-	} else {
-		errMsg := sendErr.Error()
-
-		if len(errMsg) > 190 {
-			errMsg = errMsg[:190]
-		}
-
-		mail.EmailErr = sql.NullString{
-			Valid:  true,
-			String: errMsg,
-		}
-	}
-
 	mail.EmailID = sql.NullString{
-		Valid:  true,
+		Valid:  smtpID != "",
 		String: smtpID,
-	}
-
-	mail.EmailMessage = sql.NullString{
-		Valid:  true,
-		String: msg,
 	}
 
 	err = db.Save(&mail).Error
@@ -458,7 +330,7 @@ func UpdateSNEmailSendMsg(mailID string, msg string, smtpID string, sendErr erro
 	return nil
 }
 
-func UpdateAMThankEmailSendMsg(mailID string, smtpID string, sendErr error) error {
+func UpdateAMThankEmailSendMsg(mailID string, smtpID string) error {
 	if db == nil {
 		return nil
 	}
@@ -471,26 +343,8 @@ func UpdateAMThankEmailSendMsg(mailID string, smtpID string, sendErr error) erro
 		return err
 	}
 
-	mail.SendThankEmail = true
-	if sendErr == nil {
-		mail.ThankEmailErr = sql.NullString{
-			Valid: false,
-		}
-	} else {
-		errMsg := sendErr.Error()
-
-		if len(errMsg) > 190 {
-			errMsg = errMsg[:190]
-		}
-
-		mail.ThankEmailErr = sql.NullString{
-			Valid:  true,
-			String: errMsg,
-		}
-	}
-
 	mail.ThankEmailID = sql.NullString{
-		Valid:  true,
+		Valid:  smtpID != "",
 		String: smtpID,
 	}
 
@@ -502,7 +356,7 @@ func UpdateAMThankEmailSendMsg(mailID string, smtpID string, sendErr error) erro
 	return nil
 }
 
-func UpdateIMAPThankEmailSendMsg(mailID string, smtpID string, sendErr error) error {
+func UpdateIMAPThankEmailSendMsg(mailID string, smtpID string) error {
 	if db == nil {
 		return nil
 	}
@@ -515,26 +369,8 @@ func UpdateIMAPThankEmailSendMsg(mailID string, smtpID string, sendErr error) er
 		return err
 	}
 
-	mail.SendThankEmail = true
-	if sendErr == nil {
-		mail.ThankEmailErr = sql.NullString{
-			Valid: false,
-		}
-	} else {
-		errMsg := sendErr.Error()
-
-		if len(errMsg) > 190 {
-			errMsg = errMsg[:190]
-		}
-
-		mail.ThankEmailErr = sql.NullString{
-			Valid:  true,
-			String: errMsg,
-		}
-	}
-
 	mail.ThankEmailID = sql.NullString{
-		Valid:  true,
+		Valid:  smtpID != "",
 		String: smtpID,
 	}
 
@@ -558,12 +394,159 @@ func FindIMAPMessageID(messageID string) (*IMAPMail, error) {
 	return &mail, nil
 }
 
-func SaveSMTPRecord(smtpID string, sender string, subject string, msg string, fromAddr *netmail.Address, toAddr []*netmail.Address, messageID string, t time.Time) error {
+func SaveWxRobotRecord(wxrobotID string, webhook string, msg string, t time.Time) error {
+	if db == nil {
+		return nil
+	}
+
+	if len(msg) > 10240 {
+		msg = msg[:10240]
+	}
+
+	record := WxRobotRecord{
+		WxRobotID:  wxrobotID,
+		Webhook:    webhook,
+		Content:    msg,
+		Time:       t,
+		SystemName: flagparser.Name,
+		Version:    resource.Version,
+	}
+
+	err := db.Create(&record).Error
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func UpdateWxRobotRecord(wxrobotID string, sendErr error) error {
+	if db == nil {
+		return nil
+	}
+
+	var record WxRobotRecord
+	err := db.Model(&WxRobotRecord{}).Where("wxrobot_id = ?", wxrobotID).Order("time desc").First(&record).Error
+	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
+		return fmt.Errorf("record not found")
+	} else if err != nil {
+		return err
+	}
+
+	if sendErr == nil {
+		record.Success = true
+		record.ErrMsg = sql.NullString{
+			Valid: false,
+		}
+	} else {
+		errMsg := sendErr.Error()
+		if len(errMsg) > 190 {
+			errMsg = errMsg[:190]
+		}
+
+		record.Success = false
+		record.ErrMsg = sql.NullString{
+			Valid:  true,
+			String: errMsg,
+		}
+	}
+
+	err = db.Save(&record).Error
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func SaveWxRobotFileRecord(wxrobotID string, msg string) error {
+	if db == nil {
+		return nil
+	}
+
+	var record WxRobotRecord
+	err := db.Model(&WxRobotRecord{}).Where("wxrobot_id = ?", wxrobotID).Order("time desc").First(&record).Error
+	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
+		return fmt.Errorf("record not found")
+	} else if err != nil {
+		return err
+	}
+
+	if len(msg) > 10240 {
+		msg = msg[:10240]
+	}
+
+	record.FileContent = sql.NullString{
+		Valid:  true,
+		String: msg,
+	}
+
+	err = db.Save(&record).Error
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func UpdateWxRobotFileRecord(wxrobotID string, fileID string, sendErr error) error {
+	if db == nil {
+		return nil
+	}
+
+	var record WxRobotRecord
+	err := db.Model(&WxRobotRecord{}).Where("wxrobot_id = ?", wxrobotID).Order("time desc").First(&record).Error
+	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
+		return fmt.Errorf("record not found")
+	} else if err != nil {
+		return err
+	}
+
+	record.FileID = sql.NullString{
+		Valid:  fileID != "",
+		String: fileID,
+	}
+
+	if sendErr == nil {
+		record.FileSuccess = sql.NullBool{
+			Valid: true,
+			Bool:  true,
+		}
+		record.FileErrMsg = sql.NullString{
+			Valid: false,
+		}
+	} else {
+		errMsg := sendErr.Error()
+		if len(errMsg) > 190 {
+			errMsg = errMsg[:190]
+		}
+
+		record.FileSuccess = sql.NullBool{
+			Valid: true,
+			Bool:  false,
+		}
+		record.FileErrMsg = sql.NullString{
+			Valid:  true,
+			String: errMsg,
+		}
+	}
+
+	err = db.Save(&record).Error
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func SaveSMTPRecord(smtpID string, subject string, msg string, senderAddr *netmail.Address, fromAddr *netmail.Address, toAddr []*netmail.Address, messageID string, t time.Time) error {
 	if db == nil {
 		return nil
 	}
 
 	err := db.Transaction(func(tx *gorm.DB) error {
+		sender := senderAddr.String()
+
 		if len(sender) > 100 {
 			sender = sender[:100]
 		}
@@ -586,6 +569,10 @@ func SaveSMTPRecord(smtpID string, sender string, subject string, msg string, fr
 			messageID = messageID[:1020]
 		}
 
+		if len(msg) > 10240 {
+			msg = msg[:10240]
+		}
+
 		record := SMTPRecord{
 			SmtpID:  smtpID,
 			Sender:  sender,
@@ -597,11 +584,11 @@ func SaveSMTPRecord(smtpID string, sender string, subject string, msg string, fr
 				String: messageID,
 			},
 			Time:       t,
-			SystemName: resource.Name,
+			SystemName: flagparser.Name,
 			Version:    resource.Version,
 		}
 
-		err := db.Create(&record).Error
+		err := tx.Create(&record).Error
 		if err != nil {
 			return err
 		}
@@ -622,7 +609,7 @@ func SaveSMTPRecord(smtpID string, sender string, subject string, msg string, fr
 				Recipient: recipient,
 			}
 
-			err := db.Create(&recRecord).Error
+			err := tx.Create(&recRecord).Error
 			if err != nil {
 				return err
 			}

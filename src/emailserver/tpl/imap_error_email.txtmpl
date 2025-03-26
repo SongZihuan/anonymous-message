@@ -1,0 +1,16 @@
+尊敬的 {{ .UserName }} :
+
+   您好，我们（{{ .myNameAddr }}）已经收到您的来信。但是非常抱歉，您的来信存在以下问题被我们拒收：{{ .ErrorMsg }}。
+   您可通过邮件与我们取得联系：{{ .MyNameAddr }}。
+   您还可以通过在线邮件与我联系：{{ .WebURL }}。
+
+   注意：邮件地址 {{ .UserAddr }} 在接下来的一段时间内不会再收到我们发送给您的通知邮件，以防止触发反垃圾邮件机制。
+
+   非常感谢。
+
+---
+
+{{ .MyName }}
+
+{{ .Date }} {{ .DateLocation }}
+{{ if ne .DateLocation "UTC" }}{{ .DateUTC }} UTC{{ end }}
