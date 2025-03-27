@@ -77,6 +77,7 @@ func SendThankMsg(subject string, messageID string, myAddr *mail.Address, userAd
 		Date:         now.In(flagparser.TimeZone()).Format("2006-01-02 15:04:05"),
 		DateLocation: flagparser.TimeZone().String(),
 		DateUTC:      now.In(time.UTC).Format("2006-01-02 15:04:05"),
+		WebURL:       flagparser.WebURL,
 	}
 
 	var tplResult bytes.Buffer
