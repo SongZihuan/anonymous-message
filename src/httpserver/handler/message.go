@@ -85,42 +85,64 @@ func HandlerMessage(c *gin.Context) {
 	data.Email = strings.TrimRight(data.Email, "\n")
 	data.Email = strings.TrimSpace(data.Email)
 
+	var userAddr *mail.Address
+
 	if data.Email != "" {
-		if utils.IsValidEmail(data.Email) {
-			myAddr := emailaddress.DefaultRecipientAddress
-			userAddr := &mail.Address{
-				Name:    "",
-				Address: data.Email,
-			}
-
-			JSON = func(code int, obj *ReturnData) {
-				if !flagparser.Debug {
-					obj.ErrMessage = ""
+		_res, err := mail.ParseAddress(data.Email)
+		if err == nil && utils.IsValidEmail(_res.Address) {
+			isMyAddr := func() bool {
+				for _, rec := range emailaddress.RecipientAddress {
+					if _res.Address == rec.Address {
+						return true
+					}
 				}
+				return false
+			}()
 
-				if !strings.HasSuffix(obj.Message, "。") && !strings.HasSuffix(obj.Message, "！") {
-					obj.Message += "。"
-				}
-
-				c.JSON(code, obj)
-
-				if obj.Code >= 0 {
-					return
-				}
-
-				msg := strings.TrimRight(obj.Message, "。")
-				msg = strings.TrimRight(msg, "！")
-
-				_, _ = smtpserver.SendErrorMsg("信件拒收通知", "", myAddr, userAddr, msg)
+			if !isMyAddr {
+				userAddr = _res
+			} else {
+				JSON(200, &ReturnData{
+					Code:       -2,
+					Success:    false,
+					Message:    "邮箱错误。",
+					ErrMessage: "邮件为 RecipientAddress 中的邮箱",
+				})
+				return
 			}
 		} else {
 			JSON(200, &ReturnData{
 				Code:       -2,
 				Success:    false,
-				Message:    "邮箱错误。",
-				ErrMessage: "邮箱错误",
+				Message:    "邮箱格式错误。",
+				ErrMessage: "邮箱格式错误",
 			})
 			return
+		}
+	} else {
+		userAddr = nil
+	}
+
+	if userAddr != nil {
+		JSON = func(code int, obj *ReturnData) {
+			if !flagparser.Debug {
+				obj.ErrMessage = ""
+			}
+
+			if !strings.HasSuffix(obj.Message, "。") && !strings.HasSuffix(obj.Message, "！") {
+				obj.Message += "。"
+			}
+
+			c.JSON(code, obj)
+
+			if obj.Code >= 0 {
+				return
+			}
+
+			msg := strings.TrimRight(obj.Message, "。")
+			msg = strings.TrimRight(msg, "！")
+
+			_, _ = smtpserver.SendErrorMsg("信件拒收通知", "", emailaddress.DefaultRecipientAddress, userAddr, msg)
 		}
 	}
 
@@ -132,7 +154,7 @@ func HandlerMessage(c *gin.Context) {
 		IPRateLimit = true
 	}
 
-	if data.Email != "" && !reqrate.CheckMailAddressRate(data.Email) {
+	if userAddr != nil && !reqrate.CheckMailAddressRate(userAddr.Address) {
 		EmailRateLimit = true
 	}
 
@@ -197,11 +219,9 @@ func HandlerMessage(c *gin.Context) {
 			return
 		}
 
-		if data.Email != "" && emailaddress.DefaultRecipientAddress != nil {
-			myAddr := emailaddress.DefaultRecipientAddress
-			userAddr := &mail.Address{
-				Name:    safeName,
-				Address: data.Email,
+		if userAddr != nil {
+			if userAddr.Name == "" {
+				userAddr.Name = safeName
 			}
 
 			JSON = func(code int, obj *ReturnData) {
@@ -222,7 +242,7 @@ func HandlerMessage(c *gin.Context) {
 				msg := strings.TrimRight(obj.Message, "。")
 				msg = strings.TrimRight(obj.Message, "！")
 
-				_, _ = smtpserver.SendErrorMsg("信件拒收通知", "", myAddr, userAddr, msg)
+				_, _ = smtpserver.SendErrorMsg("信件拒收通知", "", emailaddress.DefaultRecipientAddress, userAddr, msg)
 			}
 		}
 	}
@@ -350,8 +370,8 @@ func HandlerMessage(c *gin.Context) {
 			headMsgBuilder.WriteString(fmt.Sprintf("是否匿名：否\n"))
 		}
 
-		if data.Email != "" {
-			headMsgBuilder.WriteString(fmt.Sprintf("邮箱：%s\n", data.Email))
+		if userAddr != nil {
+			headMsgBuilder.WriteString(fmt.Sprintf("邮箱：%s\n", utils.FormatEmailAddressToHumanStringMustSafe(userAddr)))
 		} else {
 			headMsgBuilder.WriteString(fmt.Sprintf("邮箱：未预留\n"))
 		}
@@ -430,6 +450,7 @@ func HandlerMessage(c *gin.Context) {
 
 		msgBuilder.WriteString(fmt.Sprintf("Origin: %s\n", origin))
 		msgBuilder.WriteString(fmt.Sprintf("Host: %s\n", c.Request.Host))
+		msgBuilder.WriteString(fmt.Sprintf("Host: %s\n", c.Request.Host))
 		msgBuilder.WriteString(fmt.Sprintf("IP地址：%s\n", clientIP))
 
 		msgBuilder.WriteString(fmt.Sprintf("名字：%s\n", safeName))
@@ -443,8 +464,8 @@ func HandlerMessage(c *gin.Context) {
 			msgBuilder.WriteString(fmt.Sprintf("是否匿名：否\n"))
 		}
 
-		if data.Email != "" {
-			msgBuilder.WriteString(fmt.Sprintf("邮箱：%s\n", data.Email))
+		if userAddr != nil {
+			msgBuilder.WriteString(fmt.Sprintf("邮箱：%s\n", utils.FormatEmailAddressToHumanStringJustNameMustSafe(userAddr)))
 		} else {
 			msgBuilder.WriteString(fmt.Sprintf("邮箱：未预留\n"))
 		}
@@ -487,23 +508,8 @@ func HandlerMessage(c *gin.Context) {
 
 		<-initchan
 
-		if data.Email != "" {
-			var userAddr *mail.Address
-			var myAddr = emailaddress.DefaultRecipientAddress
-
-			if isAnonymous {
-				userAddr = &mail.Address{
-					Name:    "",
-					Address: data.Email,
-				}
-			} else {
-				userAddr = &mail.Address{
-					Name:    safeName,
-					Address: data.Email,
-				}
-			}
-
-			smtpID, _ := smtpserver.SendThankMsg("我们已经收到你的信件啦！", "", myAddr, userAddr)
+		if userAddr != nil {
+			smtpID, _ := smtpserver.SendThankMsg("我们已经收到你的信件啦！", "", emailaddress.DefaultRecipientAddress, userAddr)
 			_ = database.UpdateAMThankEmailSendMsg(mailID, smtpID)
 		}
 	}()

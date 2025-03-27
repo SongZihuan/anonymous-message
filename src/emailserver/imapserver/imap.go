@@ -358,6 +358,19 @@ func StartIMAPServer(stopchan chan bool) (chan bool, error) {
 									}
 								}
 
+								isMyAddr := func() bool {
+									for _, rec := range emailaddress.RecipientAddress {
+										if userAddr.Address == rec.Address {
+											return true
+										}
+									}
+									return false
+								}()
+
+								if isMyAddr || userAddr.Address == myAddr.Address {
+									return // 消息不做处理，否则可能形成循环
+								}
+
 								errFunc := func(errMsg string) error {
 									_, err := smtpserver.SendErrorMsg(subject, messageID, myAddr, userAddr, errMsg)
 									if err != nil && errors.Is(err, smtpserver.ErrRateLimit) {
